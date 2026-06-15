@@ -79,12 +79,19 @@ plain `pip install` is self-contained — no clone required.
 `install` does three things:
 
 1. delegates the base install to `obsidian-wiki setup` (all upstream skills, global config, bootstrap files);
-2. lays this overlay's six skills on top of it;
+2. lays this overlay's six skills on top, into **every agent obsidian-wiki supports** — not just Claude (Gemini, Codex, Cursor, Windsurf, Hermes, Copilot, …). The target list is read from the pinned upstream, so it stays in sync automatically;
 3. drops `AGENTS.generic.md`, `profile.example.yml` and the gardener scripts into the vault — **non-destructively** (an existing file is never clobbered).
 
 Then, in your agent, say **"set up my wiki"** → `wiki-init` runs the structure setup and fills your profile interactively.
 
-> **Add `--copy`** to copy skill files instead of symlinking (forced automatically on Windows — see Platform notes).
+### Install scope
+
+| | Where skills land |
+|---|---|
+| **default** | **global + project** — under `$HOME` (`~/.claude/skills`, `~/.codex/skills`, …) *and* in the vault. Discoverable from any directory. |
+| **`--local`** | **project only** — under the vault (`$VAULT/.claude/skills`, `.cursor/skills`, …). Applies to the overlay *and* upstream (via `--project-only`). Note: upstream's project scope covers Claude/Cursor/Windsurf/… only — the global-only agents (Gemini, Codex, Hermes, Copilot, …) are not seated by a `--local` install. |
+
+> **`--copy`** copies skill files instead of symlinking (forced automatically on Windows — see Platform notes).
 
 ---
 

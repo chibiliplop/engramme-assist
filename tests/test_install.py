@@ -158,25 +158,30 @@ def test_cohérence_pin_pyproject_vs_upstream():
     assert f'"{pin}"' in pyproject, f"pyproject must depend on {pin}"
 
 
+def _fake_home(tmp_path, monkeypatch):
+    """Redirect Path.home() to a tmp dir so global installs never touch real $HOME."""
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setattr(install.Path, "home", staticmethod(lambda: home), raising=False)
+    return home
+
+
 def test_main_install_end_to_end(tmp_path, monkeypatch):
     vault = tmp_path / "vault"
     vault.mkdir()
+    home = _fake_home(tmp_path, monkeypatch)
 
-    # Stub the upstream delegation: just create the vault skills dir like setup would.
-    def fake_setup(v, mode):
-        (Path(v) / ".claude" / "skills").mkdir(parents=True, exist_ok=True)
-        return 0
-
-    monkeypatch.setattr(install, "run_upstream_setup", fake_setup)
+    monkeypatch.setattr(install, "run_upstream_setup", lambda v, m, local=False: 0)
     monkeypatch.setattr(install, "verify_upstream", lambda: "2026.6.5")
     monkeypatch.setattr(install.platform, "system", lambda: "Darwin")
 
     rc = install.main(["install", "--vault", str(vault)])
     assert rc == 0
 
-    skills = vault / ".claude" / "skills"
+    # Default scope = global + project: skills land under BOTH the vault and $HOME.
     for name in install.OVERLAY_SKILLS:
-        assert (skills / name / "SKILL.md").exists(), name
+        assert (vault / ".claude" / "skills" / name / "SKILL.md").exists(), name
+        assert (home / ".codex" / "skills" / name / "SKILL.md").exists(), name  # a global-only agent
     # Non-destructive vault files dropped:
     assert (vault / "AGENTS.md").exists()                       # from AGENTS.generic.md
     assert (vault / "_meta" / "profile.example.yml").exists()
@@ -184,15 +189,72 @@ def test_main_install_end_to_end(tmp_path, monkeypatch):
     assert (vault / "_meta" / "scripts" / "insights.py").exists()
 
 
+def test_main_install_local_scope_skips_global(tmp_path, monkeypatch):
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    home = _fake_home(tmp_path, monkeypatch)
+
+    captured = {}
+
+    def fake_setup(v, m, local=False):
+        captured["local"] = local
+        return 0
+
+    monkeypatch.setattr(install, "run_upstream_setup", fake_setup)
+    monkeypatch.setattr(install, "verify_upstream", lambda: "2026.6.5")
+    monkeypatch.setattr(install.platform, "system", lambda: "Darwin")
+
+    install.main(["install", "--vault", str(vault), "--local"])
+
+    assert captured["local"] is True                             # --project-only forwarded upstream
+    assert (vault / ".claude" / "skills" / "jot" / "SKILL.md").exists()   # project dir populated
+    assert not (home / ".codex" / "skills").exists()             # no global install
+
+
 def test_main_install_does_not_clobber_existing_agents_md(tmp_path, monkeypatch):
     vault = tmp_path / "vault"
     (vault).mkdir()
+    _fake_home(tmp_path, monkeypatch)
     (vault / "AGENTS.md").write_text("# Thomas's real conventions — keep")
 
-    monkeypatch.setattr(install, "run_upstream_setup", lambda v, m: 0)
+    monkeypatch.setattr(install, "run_upstream_setup", lambda v, m, local=False: 0)
     monkeypatch.setattr(install, "verify_upstream", lambda: "2026.6.5")
     monkeypatch.setattr(install.platform, "system", lambda: "Darwin")
 
     install.main(["install", "--vault", str(vault)])
     assert (vault / "AGENTS.md").read_text() == "# Thomas's real conventions — keep"
     assert (vault / "AGENTS.generic.md").exists()  # reference copy placed instead
+
+
+def test_overlay_skill_targets_local_is_project_only(tmp_path):
+    vault = tmp_path / "vault"
+    home = tmp_path / "home"
+    targets = install.overlay_skill_targets(vault, local=True, home=home)
+    assert targets, "expected project-local targets"
+    assert all(vault in t.parents for t in targets), targets     # every target under the vault
+    assert all(home not in t.parents for t in targets)           # nothing under $HOME
+    assert vault / ".claude" / "skills" in targets
+
+
+def test_overlay_skill_targets_global_plus_project(tmp_path):
+    vault = tmp_path / "vault"
+    home = tmp_path / "home"
+    targets = install.overlay_skill_targets(vault, local=False, home=home)
+    assert vault / ".claude" / "skills" in targets              # project (vault)
+    assert home / ".codex" / "skills" in targets                # global-only agent
+    assert home / ".gemini" / "skills" in targets
+    assert len(targets) == len(set(targets))                    # de-duplicated
+
+
+def test_run_upstream_setup_local_adds_project_only(monkeypatch):
+    # Patch the real cli.main directly (robust to import order, unlike sys.modules).
+    import obsidian_wiki.cli as upstream_cli
+    captured = {}
+    monkeypatch.setattr(upstream_cli, "main", lambda argv: captured.update(argv=argv) or 0)
+
+    install.run_upstream_setup("/tmp/vault", "symlink", local=True)
+    assert "--project-only" in captured["argv"]
+    # default (local=False) must NOT add it
+    captured.clear()
+    install.run_upstream_setup("/tmp/vault", "symlink")
+    assert "--project-only" not in captured["argv"]

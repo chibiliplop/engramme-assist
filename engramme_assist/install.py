@@ -30,9 +30,100 @@ OVERLAY_SKILLS = (
     "wiki-profile",
 )
 
+# Agent skill directories. The overlay installs its skills into the SAME set
+# obsidian-wiki uses, so every agent it supports also gets the overlay skills —
+# not just Claude. The live list is read straight from the pinned upstream (see
+# _agent_skill_dirs) so it stays in sync automatically; the tuples below are a
+# vendored fallback used only if those upstream internals ever move.
+#
+# Global dirs live under $HOME (discoverable from any directory); project dirs
+# live under the vault. Upstream's project scope is the narrower set — the
+# global-only agents (gemini, codex, hermes, copilot, …) are NOT covered by a
+# project-local (`--local`) install, on either side.
+_GLOBAL_AGENT_SKILL_DIRS = (
+    ".claude/skills",
+    ".gemini/skills",
+    ".gemini/antigravity/skills",
+    ".codex/skills",
+    ".hermes/skills",
+    ".openclaw/skills",
+    ".copilot/skills",
+    ".trae/skills",
+    ".trae-cn/skills",
+    ".kiro/skills",
+    ".pi/agent/skills",
+    ".agents/skills",
+)
+_PROJECT_AGENT_SKILL_DIRS = (
+    ".claude/skills",
+    ".cursor/skills",
+    ".windsurf/skills",
+    ".agents/skills",
+    ".pi/skills",
+    ".kiro/skills",
+)
+
 
 def _pkg_dir() -> Path:
     return Path(__file__).resolve().parent
+
+
+def _agent_skill_dirs() -> tuple[tuple[str, ...], tuple[str, ...]]:
+    """(_global_, _project_) agent skill dirs, read from the pinned obsidian-wiki.
+
+    We already pin obsidian-wiki exactly and import its CLI, so reading its agent
+    lists keeps the overlay in lockstep with whatever agents upstream supports —
+    no manual resync. Falls back to the vendored tuples if those internals move.
+    """
+    try:
+        from obsidian_wiki.cli import GLOBAL_AGENT_DIRS, PROJECT_AGENT_DIRS
+
+        global_dirs = tuple(entry[0] for entry in GLOBAL_AGENT_DIRS)
+        project_dirs = tuple(entry[0] for entry in PROJECT_AGENT_DIRS)
+        if global_dirs and project_dirs:
+            return global_dirs, project_dirs
+    except Exception:  # upstream renamed/removed the constants → use the fallback
+        pass
+    return _GLOBAL_AGENT_SKILL_DIRS, _PROJECT_AGENT_SKILL_DIRS
+
+
+def _hermes_profile_skill_dirs(home: Path) -> list[Path]:
+    """Mirror upstream: the active HERMES_HOME profile + every ~/.hermes/profiles/*."""
+    dirs: list[Path] = []
+    handled: set[Path] = set()
+    hermes_home = os.environ.get("HERMES_HOME")
+    if hermes_home:
+        hp = Path(hermes_home).expanduser()
+        if hp != home / ".hermes":
+            dirs.append(hp / "skills")
+            handled.add(hp)
+    profiles = home / ".hermes" / "profiles"
+    if profiles.is_dir():
+        for prof in sorted(p for p in profiles.iterdir() if p.is_dir()):
+            if prof not in handled:
+                dirs.append(prof / "skills")
+    return dirs
+
+
+def overlay_skill_targets(vault_path: Path, local: bool, home: Path | None = None) -> list[Path]:
+    """Every skill dir the overlay should populate.
+
+    ``local=True``  → project-local only (under the vault), matching upstream's
+    ``--project-only``. ``local=False`` → global (under ``$HOME``) + project-local.
+    """
+    home = home or Path.home()
+    global_dirs, project_dirs = _agent_skill_dirs()
+    targets: list[Path] = [vault_path / rel for rel in project_dirs]
+    if not local:
+        targets += [home / rel for rel in global_dirs]
+        targets += _hermes_profile_skill_dirs(home)
+    seen: set[Path] = set()
+    deduped: list[Path] = []
+    for t in targets:  # preserve order, drop duplicates
+        if t not in seen:
+            seen.add(t)
+            deduped.append(t)
+    return deduped
 
 
 def data_root() -> Path:
@@ -139,14 +230,20 @@ def verify_upstream() -> str:
     return up_ver
 
 
-def run_upstream_setup(vault: str, mode: str) -> int:
+def run_upstream_setup(vault: str, mode: str, local: bool = False) -> int:
     """Delegate the base install to obsidian-wiki: all upstream skills, global
-    config, and the project bootstrap (AGENTS.md etc.) into the vault."""
+    config, and the project bootstrap (AGENTS.md etc.) into the vault.
+
+    ``local=True`` adds ``--project-only`` so upstream skips its global agent
+    install and only seats skills project-locally (its project scope covers
+    Claude/Cursor/Windsurf/… — not the global-only agents)."""
     from obsidian_wiki import cli as upstream_cli
 
     argv = ["setup", "--vault", vault, "--project", vault]
     if mode == "copy":
         argv.append("--copy")
+    if local:
+        argv.append("--project-only")
     return upstream_cli.main(argv)
 
 
@@ -172,7 +269,7 @@ def cmd_install(args: argparse.Namespace) -> int:
 
     verify_upstream()
     print(f"▸ Base install via obsidian-wiki (mode: {mode})")
-    rc = run_upstream_setup(vault, mode)
+    rc = run_upstream_setup(vault, mode, local=args.local)
     if rc != 0:
         print("error: upstream `obsidian-wiki setup` failed", file=sys.stderr)
         return rc
@@ -180,9 +277,12 @@ def cmd_install(args: argparse.Namespace) -> int:
     vault_path = Path(vault)
     root = data_root()
 
-    print("▸ Overlay skills")
-    done = install_overlay_skills(vault_path / ".claude" / "skills", mode)
-    print(f"✅  Overlay skills: {', '.join(done)}")
+    scope = "project-local" if args.local else "global + project"
+    print(f"▸ Overlay skills ({scope})")
+    targets = overlay_skill_targets(vault_path, args.local)
+    for target in targets:
+        install_overlay_skills(target, mode)
+    print(f"✅  Overlay skills → {len(targets)} agent dir(s): {', '.join(OVERLAY_SKILLS)}")
 
     # Non-destructive vault files.
     if place_if_absent(root / "AGENTS.generic.md", vault_path / "AGENTS.md"):
@@ -214,6 +314,13 @@ def build_parser() -> argparse.ArgumentParser:
         "--copy",
         action="store_true",
         help="copy skill files instead of symlinking (forced on Windows)",
+    )
+    ip.add_argument(
+        "--local",
+        action="store_true",
+        help="install project-locally (under the vault) only, not globally — applies "
+        "to the overlay AND upstream; upstream's project scope covers Claude/Cursor/"
+        "Windsurf/… only, not the global-only agents (gemini, codex, hermes, copilot, …)",
     )
     ip.set_defaults(func=cmd_install)
     return p
