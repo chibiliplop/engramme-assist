@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "engramme-assist"
+version = "0.1.0"
+description = "Profile-driven overlay for the obsidian-wiki agent-skill framework"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "chibiliplop" }]
+keywords = ["obsidian", "wiki", "knowledge-base", "agent-skills", "llm"]
+dependencies = ["obsidian-wiki==2026.6.5"]
+
+[project.scripts]
+engramme-assist = "engramme_assist.install:main"
+
+[tool.setuptools]
+packages = ["engramme_assist"]
+include-package-data = true
+
+[tool.setuptools.package-data]
+# Ship the overlay data (skills, scripts, AGENTS.generic.md, examples, UPSTREAM)
+# inside the wheel so `pip install` carries everything install.py needs.
+engramme_assist = ["_data/**/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

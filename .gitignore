@@ -1,0 +1,18 @@
+# Valeurs réelles — privées, jamais publiées
+profile.yml
+channels.yml
+.env
+__pycache__/
+*.pyc
+
+# Python build artifacts
+build/
+dist/
+*.egg-info/
+*.whl
+.pytest_cache/
+
+# Docs de travail internes (process/handoff — contiennent le contexte réel de l'owner,
+# hors package public). Conservés sur disque, non suivis.
+docs/HANDOFF.md
+docs/plans/

@@ -1,0 +1,12 @@
+# engramme-assist — config canaux d'exemple (factice). Copier vers $VAULT/state/channels.yml.
+# Bootstrap minimal par wiki-profile ; les skills l'enrichissent ensuite (id, canvases, canaux découverts).
+team_channels:
+  - name: "team-eng"
+    id: null               # null → résolu au 1er run via search par nom
+    type: public_channel
+  - name: "incidents"
+    id: null
+    type: public_channel
+excluded_patterns:
+  - "*-bots"
+  - "random"
