@@ -32,13 +32,13 @@ Si appelée par `wiki-init`, le mode interactif reste obligatoire.
 ## Carte des MCP requis (source de vérité)
 
 Chaque source du profil dépend d'un serveur MCP. Avant de collecter une source activée, **vérifier**
-sa dispo par un appel léger ; voir « préflight » plus bas.
+sa dispo par un appel léger ; voir l'étape **Préflight MCP** dans la Procédure.
 
 | Source profil        | Serveur MCP   | Skills consommatrices       | Vérif (appel léger)        |
 |----------------------|---------------|-----------------------------|----------------------------|
 | `sources.slack`      | Slack         | morning-brief, weekly-retro | `slack_search_users`       |
 | `sources.confluence` | Atlassian     | morning-brief, weekly-retro | `getConfluenceSpaces`      |
-| `sources.calendar`   | Microsoft 365 | morning-brief               | `outlook_calendar_search`  |
+| `sources.calendar`   | Microsoft 365 | morning-brief, weekly-retro | `outlook_calendar_search`  |
 
 ## Procédure
 
