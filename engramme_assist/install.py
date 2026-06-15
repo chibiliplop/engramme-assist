@@ -290,7 +290,10 @@ def cmd_install(args: argparse.Namespace) -> int:
     else:
         shutil.copyfile(root / "AGENTS.generic.md", vault_path / "AGENTS.generic.md")
         print("ℹ️  AGENTS.md exists — left as-is; reference copy at AGENTS.generic.md")
-    place_if_absent(root / "profile.example.yml", vault_path / "_meta" / "profile.example.yml")
+    # Single source of truth: the example shipped inside the wiki-profile skill (kept in sync
+    # with that skill's documented schema), reused here so there is no second divergent copy.
+    profile_example = root / "skills" / "wiki-profile" / "profile.example.yml"
+    place_if_absent(profile_example, vault_path / "_meta" / "profile.example.yml")
     for script in ("gardener.py", "insights.py"):
         place_if_absent(root / "scripts" / script, vault_path / "_meta" / "scripts" / script)
     print("✅  profile.example.yml + gardener scripts placed (if absent)")

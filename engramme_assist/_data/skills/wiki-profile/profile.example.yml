@@ -1,0 +1,35 @@
+# engramme-assist — example profile (dummy values).
+# Copy to ~/.obsidian-wiki/profile.yml (identity) and $VAULT/_meta/profile.yml (the rest).
+# Read by an LLM, not a parser: judgment fields carry ONE descriptive line.
+
+# --- Global (~/.obsidian-wiki/profile.yml): stable identity ---
+owner:
+  name: Alex
+  full_name: Alex Doe           # formal name: calendar search, page titles
+  role: software architect      # drives the default scoring grid (brief)
+  team: ACME
+  lang: en
+
+# --- Vault ($VAULT/_meta/profile.yml): vault context, overrides the global ---
+sources:
+  slack:
+    user_id: "U000EXAMPLE"          # for from:<@user> searches
+  confluence:
+    spaces: ["ENG", "PRODUCT"]
+  calendar: true
+tools:
+  model_tiers: { triage: haiku, synth: sonnet, deep: opus }
+  link_format: wikilink
+  retro_day: friday
+brief:
+  # Read by an LLM: one descriptive line per axis (no bare weight, no wall of text).
+  scoring_axes:
+    - { name: Architectural relevance,  weight: 3, description: "Affects system design, ADRs, technical debt, cross-team dependency." }
+    - { name: Product/business impact,  weight: 3, description: "Touches user experience or key product metrics." }
+    - { name: Technical urgency,        weight: 2, description: "Vulnerability, deprecation, prod incident, breaking change." }
+    - { name: Actionable change signal, weight: 2, description: "RFC, tooling choice, team reorg, explicit request." }
+  thresholds: { must_read: 7, watch: 5 }
+  role_fallback: >
+    If scoring_axes is absent, derive the grid from owner.role — manager:
+    team/1:1s, OKRs/roadmap, escalations & risks, strategic decisions;
+    PM: user value, backlog prioritisation, product metrics.

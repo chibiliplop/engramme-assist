@@ -27,6 +27,13 @@ def test_every_overlay_skill_has_a_skill_md():
         assert (root / "skills" / name / "SKILL.md").is_file(), name
 
 
+def test_profile_example_has_single_source_in_wiki_profile_skill():
+    # The installer reuses the wiki-profile skill's copy; there must be no second divergent one.
+    root = install.data_root()
+    assert (root / "skills" / "wiki-profile" / "profile.example.yml").is_file()
+    assert not (root / "profile.example.yml").exists()
+
+
 def test_read_upstream_pin_matches_file():
     pin = install.read_upstream_pin()
     assert pin.startswith("obsidian-wiki==")

@@ -12,8 +12,8 @@ def _read(name: str) -> str:
 def test_wiki_profile_states_interactive_invariant():
     t = _read("wiki-profile").lower()
     # must explicitly forbid the pass-through / rubber-stamp behaviour
-    assert "interacti" in t
-    assert "jamais" in t and ("passe-plat" in t or "auto-accept" in t or "rubber" in t)
+    assert "interactive" in t
+    assert "never" in t and ("pass-through" in t or "rubber" in t)
 
 
 def test_wiki_profile_has_mcp_preflight_map():
@@ -31,13 +31,13 @@ def test_wiki_profile_resolves_slack_ids_now():
 def test_wiki_profile_frames_excluded_as_slack_channels():
     t = _read("wiki-profile").lower()
     assert "excluded_patterns" in t
-    assert "canal" in t or "canaux" in t          # framed as Slack channels
+    assert "channel" in t                         # framed as Slack channels
     assert "*-bots" in _read("wiki-profile")      # channel-style example, not file glob
 
 
 def test_wiki_profile_sources_are_opt_in():
     t = _read("wiki-profile").lower()
-    assert "tu utilises" in t or "utilises-tu" in t or "opt-in" in t
+    assert "tu utilises" in t or "opt-in" in t    # French user-facing prompt kept; opt-in framing
 
 
 def test_wiki_init_invokes_profile_interactively():
@@ -48,6 +48,33 @@ def test_wiki_init_invokes_profile_interactively():
 
 def test_wiki_init_has_completeness_gate_and_report():
     t = _read("wiki-init").lower()
-    assert "complétude" in t or "complet" in t
-    assert "rapport" in t                         # final setup report
-    assert "pending" in t or "différ" in t        # deferred-source status
+    assert "complete" in t                        # completeness gate
+    assert "report" in t                          # final setup report
+    assert "pending" in t                         # deferred-source status
+
+
+def test_wiki_profile_specifies_scoring_axis_weight():
+    t = _read("wiki-profile")
+    # scoring axes must explicitly require a weight + the exact key names
+    assert "scoring_axes" in t and "weight" in t
+    assert "must_read" in t and "watch" in t
+    assert "integer ≥ 1" in t                     # weight is a required positive integer
+
+
+def test_wiki_profile_offers_assisted_discovery_with_keep_ignore():
+    t = _read("wiki-profile")
+    low = t.lower()
+    # offers to enumerate + help choose, opt-in
+    assert "assisted discovery" in low
+    assert "slack_search_channels" in t and "getConfluenceSpaces" in t
+    # must present BOTH sides explicitly, never silently drop, user decides
+    assert "keep" in low and "ignore" in low
+    assert "last word" in low
+
+
+def test_wiki_profile_ships_filled_example_alongside():
+    # the skill promises a co-located, loadable template — it must actually ship
+    example = SKILLS / "wiki-profile" / "profile.example.yml"
+    assert example.is_file(), example
+    text = example.read_text(encoding="utf-8")
+    assert "scoring_axes" in text and "weight:" in text and "thresholds" in text
