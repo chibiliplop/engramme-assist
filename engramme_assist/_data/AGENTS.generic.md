@@ -51,7 +51,11 @@ $OBSIDIAN_VAULT_PATH/
 ├── synthesis/              # Cross-cutting analysis connecting multiple concepts
 ├── journal/                # Time-bound entries — daily logs, session notes
 └── projects/
-    └── <project-name>.md   # One page per project synced via wiki-update
+    └── <project-name>/      # One folder per project synced via wiki-update
+        ├── <project-name>.md   # Project overview/hub page (named after the project)
+        ├── concepts/           # Project-specific ideas, architectures
+        ├── skills/             # Project-specific how-tos, patterns
+        └── references/         # Project-specific source summaries
 ```
 
 Every wiki page has required frontmatter: `title`, `category`, `tags`, `sources`, `created`, `updated`. Pages connect via internal links — `[[wikilinks]]` by default, or standard Markdown links when `OBSIDIAN_LINK_FORMAT=markdown` is set in config.
@@ -99,6 +103,7 @@ Skills live in `.skills/<name>/SKILL.md`. Match the user's intent to the right s
 | "/impl-validator" / "check this implementation" / "validate what you did" / "is this correct?" | `impl-validator` |
 | "/wiki-switch NAME" / "switch to my work wiki" / "switch vault" / "change wiki" / "list my wikis" / "show my vaults" / "create a new vault config" | `wiki-switch` |
 | "/wiki-digest" / "what did I learn this week" / "weekly digest" / "knowledge summary" / "what's new in my wiki" / "summarize my recent learning" / "monthly review" | `wiki-digest` |
+| "/wiki-verify" / "valide l'inféré" / "vérifie ce qui est incertain" / "passe en revue les pages non sûres" / "promote verified pages" / "what needs validating" | `wiki-verify` |
 
 ## Cross-Project Usage
 
@@ -109,7 +114,7 @@ The main use case: you're working in some other project and want to sync knowled
 1. Resolve config using the Config Resolution Protocol to get `OBSIDIAN_VAULT_PATH`
 2. Scan the current project: README, source structure, git log, package metadata
 3. Distill what's worth remembering (architecture decisions, patterns, trade-offs — not code listings)
-4. Write to `$VAULT/projects/<project-name>.md`, cross-linking to concept/entity pages as needed
+4. Write to `$VAULT/projects/<project-name>/` (overview in `<project-name>.md`, deeper notes in the folder's `concepts/`, `skills/`, `references/`), cross-linking to concept/entity pages as needed
 5. Update `.manifest.json`, `index.md`, and `log.md`
 
 On repeat runs, it checks `last_commit_synced` in `.manifest.json` and only processes the delta via `git log <last_commit>..HEAD`.
@@ -146,6 +151,68 @@ See `wiki-query` and `wiki-export` skills for how the filter is applied.
 - **Frontmatter is required.** Every wiki page needs: `title`, `category`, `tags`, `sources`, `created`, `updated`.
 - **Single source of truth.** Visibility tags shape how content is surfaced — they don't duplicate or separate it.
 - **Keep context warm.** `hot.md` is a ~500-word semantic snapshot of recent activity. Every write skill updates it so the next session can pick up where the last one left off without crawling the full vault.
+- **Concision over noise — keep the wiki coherent, never a fourre-tout.** Every edit must add signal. Specifically:
+  - **No refutation traces.** When a claim is wrong, delete it — never write "X réfuté (retiré)" or annotate what was removed.
+  - **No who/how meta.** Don't add `lifecycle_reason` (or prose) like "human-edited … via wiki-verify — corrigé par le propriétaire". The editor is always the owner and the tool/date is irrelevant to the knowledge.
+  - **No negative phrasing.** State what *is*, delete what *isn't*. If a person reports to A (not B), remove them from B's page — don't keep them with "(et non directement à B)".
+  - Facts belong in the body and `summary`; frontmatter meta and contrastive notes are clutter. Prune marginal links rather than accumulate them.
+
+## Data Lifecycle
+
+The vault must stay dense, current, and bounded: growth comes from pages absorbing facts, not from page count. Three mechanisms enforce this — frontmatter conventions every write skill applies, an ingest discipline, and a daily gardener pass in `daily-update`.
+
+### Review horizon (`review_due`)
+
+Every page in a knowledge category carries two lifecycle fields:
+
+```yaml
+review_due: 2026-09-10     # updated + category half-life (table below)
+last_verified: 2026-06-12  # last time content was checked against reality
+```
+
+| Category | review_due offset |
+|---|---|
+| `projects/` | +14 days |
+| `entities/` | +90 days |
+| `references/` | +180 days |
+| `skills/` | +180 days |
+| `synthesis/` | +270 days |
+| `concepts/` | +365 days |
+| `journal/`, `retros/` | none — immutable archives |
+
+Any skill that creates or substantively updates a page recomputes `review_due` from today. A page past `review_due` is *due for review*, not wrong — `daily-update` surfaces it; `wiki-verify` and re-ingests clear it by bumping `last_verified`.
+
+### Ingest discipline — absorb, don't accumulate
+
+For every fact extracted at ingest, classify explicitly before writing:
+
+- **UPDATE** (default) — an existing page covers this entity/concept: it absorbs the fact. Bump `updated`, recompute `review_due`.
+- **ADD** — no existing page covers it (check `index.md` + QMD first). Creating a page is the exception, not the rule.
+- **DELETE** — the new fact contradicts existing content: replace it (consistent with "state what is, delete what isn't").
+- **NOOP** — already known; touch nothing.
+
+For evolving facts (a person's role, a project's status), prefer dated fields over prose history: `role: Head of B2C` + `role_since: 2026-04`.
+
+### Programmatic-first
+
+If an operation is mechanical (date comparisons, file enumeration, frontmatter field checks, link counting, index generation), it is done by a script — never by LLM file crawling. The scripts live in `_meta/scripts/`:
+
+- `gardener.py` — the whole gardener pass: `_raw/` TTL, review-due audit, archiving, auto-promotion, `index.md` rebuild. `--apply` mutates, default is dry-run, `--check` validates a run, `--skip-if-fresh` short-circuits when nothing changed.
+- `insights.py` — link-graph stats (`--apply` rewrites `_insights.md`, preserving the LLM-written Observations/Questions sections).
+
+LLMs interpret script output and write prose (hot.md, observations, briefs); they do not re-implement what the scripts do. If a script errors, fix or flag it — don't silently fall back to manual crawling.
+
+### Skill ownership (no overlapping fixes)
+
+- **Identity & alias normalization belongs to `wiki-dedup` only.** `wiki-lint --consolidate` must not rename aliases or merge identities — it owns links, frontmatter, tags-format and contradiction call-outs.
+- **Graph stats belong to `insights.py`** — `wiki-status` insights mode runs the script and adds interpretation, it does not recount links.
+
+### Gardener rules (applied by `daily-update`)
+
+- **`_raw/` TTL** — a staged file already promoted (tracked in `.manifest.json`) and older than 7 days is deleted. Unpromoted and older than 14 days: flagged once in the report, moved to `_archives/` on the next pass.
+- **`index.md` is derived** — rebuilt from page frontmatter on every pass, never patched by diff appends. It is an artifact, not a source of truth.
+- **Archiving** — a page 60+ days past `review_due`, with no inbound wikilinks, moves to `_archives/YYYY-MM/` (inbound references already absent by definition). Archives stay greppable but leave `index.md` and the QMD collection.
+- **Auto-promotion** — `lifecycle: draft` → `reviewed` when `base_confidence ≥ 0.8`, no `^[inferred]`/`^[ambiguous]` markers remain in the body, and the page cites ≥2 sources. Promotion to `verified` stays human-only, via `wiki-verify`.
 
 ## Architecture Reference
 

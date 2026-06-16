@@ -9,6 +9,10 @@ def _read(name: str) -> str:
     return (SKILLS / name / "SKILL.md").read_text(encoding="utf-8")
 
 
+def _read_ref(skill: str, name: str) -> str:
+    return (SKILLS / skill / "references" / name).read_text(encoding="utf-8")
+
+
 def test_wiki_profile_states_interactive_invariant():
     t = _read("wiki-profile").lower()
     # must explicitly forbid the pass-through / rubber-stamp behaviour
@@ -78,3 +82,58 @@ def test_wiki_profile_ships_filled_example_alongside():
     assert example.is_file(), example
     text = example.read_text(encoding="utf-8")
     assert "scoring_axes" in text and "weight:" in text and "thresholds" in text
+
+
+def test_morning_brief_references_are_shipped_and_linked():
+    t = _read("morning-brief")
+    expected = (
+        "agent-a1-slack-triage.md",
+        "agent-a2-slack-synth.md",
+        "agent-b-claude-sessions.md",
+        "agent-c-confluence.md",
+        "agent-d-calendar.md",
+        "agent-e-daily-update.md",
+        "architecture-notes.md",
+        "brief-template.md",
+        "person-entity-convention.md",
+        "sources-monitored.md",
+    )
+    for filename in expected:
+        rel = f"references/{filename}"
+        assert rel in t, rel
+        assert (SKILLS / "morning-brief" / rel).is_file(), rel
+
+
+def test_morning_brief_agent_prompts_remain_loadable():
+    for filename in (
+        "agent-a1-slack-triage.md",
+        "agent-a2-slack-synth.md",
+        "agent-b-claude-sessions.md",
+        "agent-c-confluence.md",
+        "agent-d-calendar.md",
+        "agent-e-daily-update.md",
+    ):
+        text = _read_ref("morning-brief", filename)
+        assert text.count("```") >= 2, filename
+        assert "Subagent type:" in text, filename
+        assert "Model:" in text, filename
+
+
+def test_morning_brief_template_keeps_output_contract():
+    template = _read_ref("morning-brief", "brief-template.md")
+    for marker in (
+        "digest-first / single-mention rule",
+        "Rafraîchi le matin",
+        "## 📌 Must read",
+        "## 👀 À surveiller",
+        "## 📋 Actions en cours",
+        "## ⚡ Action required today",
+        "## 🎯 Préparation réunions",
+        "## 📅 Next working day — prepare today",
+        "## 🗂 Faible signal — liens",
+        "qmd query",
+        "goals.md",
+        "one_liner",
+        "under 1,200 words",
+    ):
+        assert marker in template, marker
