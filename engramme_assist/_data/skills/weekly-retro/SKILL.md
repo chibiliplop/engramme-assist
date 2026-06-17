@@ -15,8 +15,8 @@ Run a structured weekly retrospective with {{profile.owner.name}} every `{{profi
 
 ## Inputs
 
-- **Working directory** — must be `$OBSIDIAN_VAULT_PATH` (résolu via le Config Resolution Protocol). Abort with a clear message otherwise.
-- **Today + ISO week** — get via `date +"%Y-%m-%d %G-W%V %u"` (weekday 1=Mon…7=Sun). The retro covers the **current ISO week, Monday 00:00 → now** — unless the late-retro catch-up (Step 0.5) retargets it to the previous week or extends the window.
+- **Working directory** — must be `$OBSIDIAN_VAULT_PATH` (resolved via the Config Resolution Protocol). Abort with a clear message otherwise.
+- **Today + ISO week** — get via `date +"%Y-%m-%d %G-W%V %u"` (weekday 1=Mon…7=Sun). The retro covers the **current ISO week, Monday 00:00 → now** — unless the late-retro catch-up (Step 0) retargets it to the previous week or extends the window.
 - **Persistent state**:
   - `retros/YYYY-Www-retro.md` — one file per week (this run writes the current one).
   - `goals.md` (vault root) — short/medium/long-term goals, parseable format described in its header.
@@ -26,19 +26,23 @@ Run a structured weekly retrospective with {{profile.owner.name}} every `{{profi
 
 ## Output language
 
-The interactive session **and** the written retro are in **French**, full sentences ({{profile.owner.name}}'s wiki prose convention — no terse fragments). This SKILL file is in English; what {{profile.owner.name}} reads is French.
+The interactive session **and** the written retro are produced in the owner's profile language, `{{profile.owner.lang}}` — in full sentences ({{profile.owner.name}}'s wiki-prose convention, no terse fragments). This SKILL file's instructions are in English; everything user-facing (the questions asked, the retro template, the example prompts below) is rendered in `{{profile.owner.lang}}`. The concrete examples here are written in French because that is the current profile language; adapt them if `{{profile.owner.lang}}` differs.
+
+## Dependencies
+
+Beyond the vault scripts (`_meta/scripts/gardener.py`), this skill orchestrates sibling skills and will silently no-op large parts of a run if they are missing. It expects the full wiki skill set: `wiki-verify` (Step 2b), plus — for the Step 9 maintenance tail — `wiki-history-ingest`, `cross-linker`, `wiki-synthesize`, `wiki-digest`, `wiki-dedup`, `tag-taxonomy`, and `wiki-ingest` (escalation). When shipping this skill on its own, install those alongside it.
 
 ## Process
 
 ### Step 0 — Guard + bootstrap
 
 1. Confirm working dir is the wiki. Otherwise abort.
-2. Run `date +"%Y-%m-%d %G-W%V %u"`. Derive: `today`, `iso_week` (e.g. `2026-W22`), `weekday`. Compute the **Monday of this ISO week** as the window start.
+2. Run `date +"%Y-%m-%d %G-W%V %u"`. Derive: `today`, `iso_week` (e.g. `2026-W22`), `weekday` (1=Mon…7=Sun), and `retro_dow` = the ISO weekday number of `{{profile.tools.retro_day}}` (e.g. `friday` → 5). Compute the **Monday of this ISO week** as the window start.
 3. Ensure these exist, create from the conventions if missing: `retros/` dir, `goals.md`, `state/retro-patterns.json` (`{}`), `state/last-retro.txt`.
 4. If `state/last-retro.txt` already equals `iso_week`, tell {{profile.owner.name}} a retro for this week exists and ask whether to **edit/extend it** or start fresh.
-5. **Late-retro catch-up** — compute `prev_week` = ISO week of (today − 7 days). If `retros/{prev_week}-retro.md` does NOT exist (last week was never retro'd) and step 4 didn't trigger:
-   - **Weekday 1–3 (Mon–Wed)**: ask ONE question — "La semaine {prev_week} n'a pas eu de rétro — on rattrape la semaine dernière (recommandé) ou on fait la semaine en cours ?" On catch-up (default): set `target_week = prev_week` and `window = Monday 00:00 → Sunday 23:59 of prev_week`. EVERYTHING downstream uses `target_week`, not the calendar week: the retro filename `retros/{target_week}-retro.md`, the `week:` frontmatter, `retro-patterns.json` weeks, the log line, and the **monthly gates** (first/last retro of the month are evaluated against `target_week`'s month). The evidence is already on disk (briefs and tasks are immutable), so the compile works identically. After writing, `state/last-retro.txt` ← `target_week` — the normal `{{profile.tools.retro_day}}` retro for the current week stays possible and unaffected.
-   - **Weekday 4–5 (Thu–Fri)**: don't produce two retros back-to-back — extend the current retro's window back to Monday of `prev_week` and title it for both weeks ("Rétro — {prev_week}–{iso_week}", filename stays `retros/{iso_week}-retro.md`, frontmatter `period` covers the full span). Say explicitly in the opening draft that it covers two weeks.
+5. **Late-retro catch-up** — compute `prev_week` = ISO week of (today − 7 days). If `retros/{prev_week}-retro.md` does NOT exist (last week was never retro'd) and step 4 didn't trigger, branch on `gap = retro_dow − weekday` (how far today still is from this week's retro slot):
+   - **`gap ≥ 2`** (running well before the retro slot — e.g. Mon–Wed for a Friday retro): ask ONE question — "La semaine {prev_week} n'a pas eu de rétro — on rattrape la semaine dernière (recommandé) ou on fait la semaine en cours ?" On catch-up (default): set `target_week = prev_week` and `window = Monday 00:00 → Sunday 23:59 of prev_week`. EVERYTHING downstream uses `target_week`, not the calendar week: the retro filename `retros/{target_week}-retro.md`, the `week:` frontmatter, `retro-patterns.json` weeks, the log line, and the **monthly gates** (first/last retro of the month are evaluated against `target_week`'s month). The evidence is already on disk (briefs and tasks are immutable), so the compile works identically. After writing, `state/last-retro.txt` ← `target_week` — the normal `{{profile.tools.retro_day}}` retro for the current week stays possible and unaffected.
+   - **`gap ≤ 1`** (running on, just before, or after the retro slot — e.g. Thu–Fri for a Friday retro): don't produce two retros back-to-back — extend the current retro's window back to Monday of `prev_week` and title it for both weeks ("Rétro — {prev_week}–{iso_week}", filename stays `retros/{iso_week}-retro.md`, frontmatter `period` covers the full span). Say explicitly in the opening draft that it covers two weeks.
    - If `prev_week`'s retro exists → no-op, normal current-week flow.
 
 ### Step 1 — Auto-compile the week (the priming, no questions yet)
@@ -50,9 +54,9 @@ Gather in parallel, then synthesise a draft. **Do the work yourself; do not ask 
 - **Topics counter** — read `state/topics-counter.json` for themes that crossed the recurrence threshold this week.
 - **Previous retro** — read the most recent file in `retros/` (by week). Extract its **action items** (for the accountability loop, Step 2) and its **top-3 next-week intentions** (did they happen?).
 - **Goals** — read `goals.md`. Load all non-closed goals with their `revu:` dates.
-- **Calendar (optional, if Outlook MCP available)** — `outlook_calendar_search` for the window to recover notable meetings attended. Skip silently if unavailable. For each notable meeting, **resolve the key attendees** against the wiki `entities/` person pages (the people directory built by `morning-brief`): grep `entities/*.md` frontmatter (pages tagged `person`) matching the attendee's `email` / `aliases` / `slack_id` / `title`, and pull `role`, `team`, `perimeter`, and the [[wikilink]]. This lets the retro say not just *that* {{profile.owner.name}} met someone but *who they are and what they own* — the raw material for the Collaboration section (3.7). If an attendee {{profile.owner.name}} clearly worked with this week has no page yet, note it so a stub can be created (delegate to `wiki-ingest` like `morning-brief` does); don't block the retro on it.
+- **Calendar (optional, if Outlook MCP available)** — `outlook_calendar_search` for the window to recover notable meetings attended. Skip silently if unavailable. For each notable meeting, **resolve the key attendees** against the wiki `entities/` person pages (the people directory built by `morning-brief`): grep `entities/*.md` frontmatter (pages tagged `person`) matching the attendee's `email` / `aliases` / `slack_id` / `title`, and pull `role`, `team`, `perimeter`, and the [[wikilink]]. This lets the retro say not just *that* {{profile.owner.name}} met someone but *who they are and what they own* — the raw material for the Collaboration section (§3.7). If an attendee {{profile.owner.name}} clearly worked with this week has no page yet, note it so a stub can be created (delegate to `wiki-ingest` like `morning-brief` does); don't block the retro on it.
 
-Produce a **« Semaine en bref »** draft (in French), grounded in the above:
+Produce a **« Semaine en bref »** draft (in `{{profile.owner.lang}}`), grounded in the above:
 - Accomplishments observed (bullet list, with the evidence: which brief/task/permalink).
 - Carry-over / unfinished.
 - Recurring topics surfaced.
@@ -62,7 +66,7 @@ Present this draft to {{profile.owner.name}} as the opening of the session, then
 
 ### Step 1b — Continuous brag capture (silent, no user interaction)
 
-**Immediately after** producing the « Semaine en bref » draft, extract notable accomplishments from the evidence gathered in Step 1 and append them to `brag/<YYYY>-inputs.md` (`<YYYY>` = année courante, dérivée de la date du jour, pas du profil). Do this silently — no questions, no confirmation. A notable accomplishment qualifies if it is: a decision arbitrated, a design doc delivered, an incident resolved, a squad unblocked, a delivery shipped, or a cross-team contribution. Each item on one line:
+**Immediately after** producing the « Semaine en bref » draft, extract notable accomplishments from the evidence gathered in Step 1 and append them to `brag/<YYYY>-inputs.md`, where `<YYYY>` is the year of the period being retro'd — derive it from `target_week`/the window, not from today, so a late-retro catch-up that lands in the previous year files into that year's brag. Do this silently — no questions, no confirmation. A notable accomplishment qualifies if it is: a decision arbitrated, a design doc delivered, an incident resolved, a squad unblocked, a delivery shipped, or a cross-team contribution. Each item on one line:
 
 ```
 - YYYY-MM-DD — <action concise> — impact: <impact pour qui, quel résultat> — preuve: [[page]] ou lien Jira/MR
@@ -72,7 +76,7 @@ Rules:
 - Append under the correct `## <Mois YYYY>` section (create the section header if the month is not yet present).
 - Deduplicate: if an identical `<action concise>` already appears in the month's section, skip it (NOOP).
 - If the evidence from Step 1 yields no qualifying accomplishment, append nothing.
-- The Q&A in Step 3 section 1 (Accomplissements → impact) also feeds this file: for each accomplishment {{profile.owner.name}} confirms or adds, append (or update) a line immediately after his response, before moving to the next Q&A section.
+- The Q&A in §3.1 (Accomplissements → impact) also feeds this file: for each accomplishment {{profile.owner.name}} confirms or adds, append (or update) a line immediately after his response, before moving to the next Q&A section.
 
 ### Step 2 — Accountability loop: review the previous retro's actions
 
@@ -80,11 +84,11 @@ Before generating new actions, close the loop on the old ones. From the previous
 
 Use a single `AskUserQuestion` (multiSelect where natural) listing the prior actions; let "Other" capture nuance. For each "pas fait", probe briefly: still relevant? re-roll into this week, or drop? This is what turns the retro from journaling into behaviour change — do not skip it. If there is no previous retro, say so and skip.
 
-### Step 2b — Mini-vérification wiki-verify (gated, ~5 min)
+### Step 2b — wiki-verify mini-check (gated, ~5 min)
 
 `/wiki-verify` is interactive-only and belongs in no automated queue — this step is its **only recurring trigger**, placed here because the retro is the moment {{profile.owner.name}} is already present and in confirmation mode.
 
-> Interpréteur : `python3` sur macOS/Linux, `python` sur Windows.
+> Interpreter: `python3` on macOS/Linux, `python` on Windows.
 
 Gate: run `python3 _meta/scripts/gardener.py` (dry-run) and read `verify_backlog_claims`. If `≥ 20`, ask ONE question (can be batched into the Step 2 `AskUserQuestion`): "Le backlog de vérification contient N claims sur M pages — on en passe ~10 en revue maintenant (5 min) ?" Options: **Oui (10 claims)** · **Non, pas cette semaine**.
 
@@ -95,22 +99,22 @@ Gate: run `python3 _meta/scripts/gardener.py` (dry-run) and read `verify_backlog
 
 ### Step 3 — Interactive Q&A (Standard depth, ~20 min)
 
-Walk these sections **in order**, each primed with the Step-1 draft so {{profile.owner.name}} reacts/edits rather than recalls. Mix two interaction styles: present the draft and invite free-text reflection in the conversation, and use `AskUserQuestion` for structured choices (ratings, triage, goal status). Batch related prompts (≤4 per `AskUserQuestion` call). Keep momentum — this is `{{profile.tools.retro_day}}`, not a tribunal.
+Walk these ten sections **in order** (cited elsewhere as §3.1 … §3.10), each primed with the Step 1 draft so {{profile.owner.name}} reacts/edits rather than recalls. Mix two interaction styles: present the draft and invite free-text reflection in the conversation, and use `AskUserQuestion` for structured choices (ratings, triage, goal status). Batch related prompts (≤4 per `AskUserQuestion` call). Keep momentum — this is `{{profile.tools.retro_day}}`, not a tribunal.
 
 1. **Accomplissements → impact (So What).** Present the observed accomplishments. For each kept one, push for the *impact*, not the activity: pour qui, quel résultat, quelle portée. Use the *So What / Why / Now What* framing. The goal: each line should be liftable verbatim into a self-assessment. Let {{profile.owner.name}} add accomplishments the data missed.
 2. **Ce qui va bien.** What worked, what to keep doing. Tie to accomplishments where relevant.
 3. **Ce qui va mal.** Frictions, blockers, frustrations. For each, capture a short **theme slug** (e.g. `ci-flaky`, `reunions-trop-longues`, `manque-specs`) — needed for pattern detection in Step 4. Cross-reference: if a theme already has hits in `state/retro-patterns.json`, surface "ça revient pour la Nᵉ fois".
 4. **Énergie & soutenabilité.** Qu'est-ce qui t'a nourri / vidé ? Charge tenable cette semaine ? Signaux à surveiller ? (One quick `AskUserQuestion` rating + free text.)
-5. **Visibilité.** Qu'as-tu fait que personne ne sait ? Faut-il le rendre visible (post Slack, page Confluence, démo, 1:1 manager) ? Anything here often becomes an action in Step 5.
+5. **Visibilité.** Qu'as-tu fait que personne ne sait ? Faut-il le rendre visible (post Slack, page Confluence, démo, 1:1 manager) ? Anything here often becomes an action in §3.9.
 6. **Apprentissages.** Ce que tu as appris cette semaine ; un truc que tu referais autrement.
-7. **Collaboration.** Qui tu as aidé, qui t'a aidé, frictions interpersonnelles/équipe à désamorcer. Prime this from the Step-1 resolved attendees: name the people {{profile.owner.name}} actually worked with this week **with their périmètre** (e.g. "tu as bossé avec X (Tech Lead Search, périmètre indexation) sur …"), so the collaboration map is concrete and tied to who owns what — not a vague "j'ai aidé des gens". Surface cross-team collaboration explicitly (working outside one's own perimeter is visibility-worthy). If the week revealed someone's perimeter changed, that's a cue to update their `entities/` page.
+7. **Collaboration.** Qui tu as aidé, qui t'a aidé, frictions interpersonnelles/équipe à désamorcer. Prime this from the Step-1 resolved attendees: name the people {{profile.owner.name}} actually worked with this week **with their perimeter** (e.g. "tu as bossé avec X (Tech Lead Search, périmètre indexation) sur …"), so the collaboration map is concrete and tied to who owns what — not a vague "j'ai aidé des gens". Surface cross-team collaboration explicitly (working outside one's own perimeter is visibility-worthy). If the week revealed someone's perimeter changed, that's a cue to update their `entities/` page.
 8. **Objectifs.** Walk each active goal from `goals.md`: avancement depuis la dernière revue ? statut (`en-cours`/`atteint`/`abandonné`/`en-pause`) ? Flag any goal with no movement for **2+ weeks** as `⚠️ stallé` and ask whether to renew, re-scope, or drop. Then ask for **new goals** by horizon (court/moyen/long).
 9. **Actions d'amélioration.** From everything above, agree on a small set of concrete actions (quality over quantity — 2 to 5). These go to `open-actions.md`.
 10. **Top 3 semaine prochaine.** The three priorities for next week → injected into Monday's `morning-brief` context and recorded in the retro.
 
 ### Step 4 — Pattern detection + escalation
 
-Update `state/retro-patterns.json`. For each theme from Step 3.3 (and notable frictions from 3.7):
+Update `state/retro-patterns.json`. For each theme from §3.3 (and notable frictions from §3.7):
 
 ```json
 {
@@ -199,21 +203,21 @@ Keep it tight and faithful to what {{profile.owner.name}} actually said — the 
 
 ### Step 6 — Update goals.md
 
-Apply the Step-8 outcomes to `goals.md`:
+Apply the §3.8 (Objectifs) outcomes to `goals.md`:
 - Update each reviewed goal's `revu:` to `today`, refresh its `- progrès:` line, change `statut:` as decided.
-- Mark stalled goals (no `revu:` movement causing progress for 2+ weeks) with `⚠️ stallé` inline.
+- Mark goals with no progress for 2+ weeks (no `revu:`/`progrès:` movement) as `⚠️ stallé` inline.
 - Move newly `atteint`/`abandonné` goals to `## ✅ Clôturés` with `✅{today}` or status + date, and a `- bilan:` line. **Never delete** a goal — closed goals are annual-review evidence.
 - Append new goals under the right horizon section with `➕{today}` and a target `🎯` date.
 
 ### Step 7 — Update open-actions.md
 
-Append the Step-9 improvement actions **and** the Top-3 intentions under the `## Actions` heading (never inside the `tasks` query code-blocks), in Obsidian **Tasks** syntax:
+Append the §3.9 (Actions d'amélioration) actions **and** the §3.10 Top-3 intentions under the `## Actions` heading (never inside the `tasks` query code-blocks), in Obsidian **Tasks** syntax:
 
 ```
-- [ ] #task @{{profile.owner.name}} — {description} #retro [#tag contextuel] ➕{today} [📅 échéance] [prio]
+- [ ] #task @{{profile.owner.name}} — {description} #retro [#tag contextuel] ➕ {today} [📅 échéance] [prio]
 ```
 
-- Always include `#task` (global filter) and `#retro` (so retro actions are filterable). Add `➕{today}`.
+- Always include `#task` (global filter) and `#retro` (so retro actions are filterable). Add `➕ {today}`.
 - Add `📅` only with a real deadline; add a priority emoji (`⏫`/`🔼`/`🔽`).
 - Deduplicate against existing unchecked lines.
 - Never check or remove existing items — only {{profile.owner.name}} does that.
@@ -232,17 +236,13 @@ Append the Step-9 improvement actions **and** the Top-3 intentions under the `##
 
 ### Step 9 — Weekly vault maintenance (analyse → confirm → apply)
 
-Runs **after** the retro is written and state persisted (Steps 5–8), while {{profile.owner.name}} is still in the session. The design principle resolves a real tension: **a subagent has no channel to the user, yet a report-only tail does half the job** — it surfaces fixes (consolidation, merges, tag drift) that then get deferred forever and never land. We don't want blind auto-apply either; {{profile.owner.name}} wants to *verify*.
-
-The resolution is to **split each gated skill across the subagent boundary**, putting the confirmation where the user actually is:
+Runs **after** the retro is written and state persisted (Steps 5–8), while {{profile.owner.name}} is still in the session. The tension: a subagent has no channel to the user, yet a report-only tail just surfaces fixes (consolidation, merges, tag drift) that then get deferred forever — and blind auto-apply isn't wanted either, since {{profile.owner.name}} wants to *verify*. The resolution is to **split each gated skill across the subagent boundary**, so the one human gate lands where the user is:
 
 - **Analyse** runs in a **subagent** (heavy read, off the orchestrator) → returns a **structured plan**, never asks, never writes.
 - **Confirm** runs in the **orchestrator** (connected to {{profile.owner.name}}) → one batched `AskUserQuestion`.
 - **Apply** runs in a **subagent** with the **approved subset** → decision already made, so nothing to ask.
 
-This is exactly how `wiki-lint --consolidate` and `wiki-dedup` are built natively (dry-run → confirm → act); we just cut at the subagent boundary so the cost stays off-context and the one human gate lands on the orchestrator. Result: we verify **and** the fixes actually apply, in the same session.
-
-Skills with **no gate** (additive, non-destructive) skip the confirm/apply dance entirely — they just run.
+This mirrors how `wiki-lint --consolidate` and `wiki-dedup` already work (dry-run → confirm → act); cutting at the subagent boundary keeps the cost off-context while the gate stays interactive. Skills with **no gate** (additive, non-destructive) skip the confirm/apply dance — they just run.
 
 ---
 
@@ -270,18 +270,18 @@ Order matters: new pages must exist before cross-linking.
    (additive only). Return: links added, orphans resolved.
    ```
 
-3. **Hot topics hebdo — `synthesis/hot-topics.md`** (weekly, every retro). Regenerate `synthesis/hot-topics.md` in REPLACE mode (never append) from `state/topics-counter.json` + the pages ingested/updated this ISO week. Selection criteria: topics with `hits >= 3` this calendar month **and** present in at least 2 different `sources` entries (squads or channels) **and** with no identified owner in the vault. These are cross-cutting zones of architectural impact. Page format: frontmatter standard (`category: synthesis`, `tags: [synthesis, hot-topics, architecture]`, `review_due: today + 270 days`) + body = table (Topic | Hits ce mois | Sources | Pourquoi c'est un sujet architecte | Action suggérée). If `topics-counter.json` is empty or yields no qualifying topics, write a minimal page stating "Aucun hot topic qualifiant ce mois." — never skip the regeneration.
+3. **Weekly hot topics — `synthesis/hot-topics.md`** (every retro). Regenerate `synthesis/hot-topics.md` in REPLACE mode (never append) from `state/topics-counter.json` + the pages ingested/updated this ISO week. Selection criteria: topics with `hits >= 3` this calendar month **and** present in at least 2 different `sources` entries (squads or channels) **and** with no identified owner in the vault. These are cross-cutting zones of architectural impact. Page format: frontmatter standard (`category: synthesis`, `tags: [synthesis, hot-topics, architecture]`, `review_due: today + 270 days`) + body = table (Topic | Hits ce mois | Sources | Pourquoi c'est un sujet architecte | Action suggérée). If `topics-counter.json` is empty or yields no qualifying topics, write a minimal page stating "Aucun hot topic qualifiant ce mois." — never skip the regeneration.
 
-4. **Monthly-only additive — `wiki-synthesize` + `wiki-digest`.** Gate: **first retro of the calendar month** (no existing `retros/YYYY-Www-retro.md` dated in the current month). If open:
+4. **Monthly-only additive — `wiki-synthesize` + `wiki-digest`.** Gate: **first retro of the calendar month being retro'd** (no existing `retros/YYYY-Www-retro.md` dated in `target_week`'s month). If open:
    - `wiki-synthesize` — **Model: {{profile.tools.model_tiers.deep}}**. Additive (synthesis pages for co-occurring concepts), no gate.
    - `wiki-digest month` — {{profile.tools.model_tiers.synth}}. Generates the monthly knowledge digest. If the period looks thin, proceed anyway — do not offer to widen (you cannot ask).
    (The monthly *gated* skills — `wiki-dedup`, `tag-taxonomy` — are not here; they run in Phases B–D.)
 
-5. **Monthly rétro mensuelle + brag compilation.** Gate: **last retro of the calendar month** — detected by: the ISO week of the *next* `{{profile.tools.retro_day}}` (today + 7 days) falls in the next calendar month. If this gate is open, append to the Phase A queue (additive, non-interactive):
+5. **Monthly retro + brag compilation.** Gate: **last retro of the calendar month being retro'd** — detected by: the ISO week of `target_week + 7 days` falls in a later calendar month than `target_week`'s (in normal mode `target_week` is the current week, so this is simply the next `{{profile.tools.retro_day}}`). If this gate is open, append to the Phase A queue (additive, non-interactive):
 
-   a. **Rétro mensuelle** — write `retros/YYYY-MM-monthly.md`. Source material: all `retros/YYYY-Www-retro.md` files for the current month + `state/retro-patterns.json` + `state/topics-counter.json`. Content: patterns récurrents (thèmes avec `hits >= 3` across the month's retros, blockers returned ≥ 3 times, goals deferred ≥ 2 weeks, investment imbalances detected from collaboration/visibility sections); delta objectifs/réalisé (goals set vs closed this month); 3 proposed adjustments for next month. Frontmatter: `type: retro-monthly`, `tags: [retro, monthly, review]`, no `review_due` (immutable archive, like weekly retros). Do NOT duplicate content from the weekly retros — synthesise, don't copy.
+   a. **Monthly retro** — write `retros/YYYY-MM-monthly.md` for `target_week`'s month. Source material: all `retros/YYYY-Www-retro.md` files for that month + `state/retro-patterns.json` + `state/topics-counter.json`. Content: recurring patterns (themes with `hits >= 3` across the month's retros, blockers returned ≥ 3 times, goals deferred ≥ 2 weeks, investment imbalances from the collaboration/visibility sections); the goals delta (set vs closed this month); 3 proposed adjustments for next month. Frontmatter: `type: retro-monthly`, `tags: [retro, monthly, review]`, no `review_due` (immutable archive, like weekly retros). Do NOT duplicate content from the weekly retros — synthesise, don't copy.
 
-   b. **Brag compilation** — read the current month's entries from `brag/<YYYY>-inputs.md` (the `## <Mois YYYY>` section). Compile them into `brag/<YYYY>.md` using the Julia Evans brag doc format: update the relevant sections (Projets, Collaboration & Mentorat, Conception & Documentation, Contribution organisationnelle, Apprentissages) — this is an UPDATE (AGENTS.md discipline), never append duplicates. Each raw input line maps to the most relevant section. Preserve the annual Objectifs section pointer to `goals.md`.
+   b. **Brag compilation** — read the entries for `target_week`'s month from `brag/<YYYY>-inputs.md` (the `## <Mois YYYY>` section; `<YYYY>` = `target_week`'s year). Compile them into `brag/<YYYY>.md` using the Julia Evans brag doc format: update the relevant sections (Projets, Collaboration & Mentorat, Conception & Documentation, Contribution organisationnelle, Apprentissages) — this is an UPDATE (AGENTS.md discipline), never append duplicates. Each raw input line maps to the most relevant section. Preserve the annual Objectifs section pointer to `goals.md`.
 
 #### Phase B — Analyse for fixes (subagents, dry-run, return plans, run in PARALLEL)
 
@@ -356,24 +356,24 @@ A second mode that turns the weekly history into a self-assessment draft. This i
 | Meeting attendee → who + perimeter | `entities/` lookup (Step 1); new people staged → `wiki-ingest` |
 | Non-Claude agent histories (weekly) | `wiki-history-ingest` (Step 9 Phase A — codex/pi/copilot/hermes/openclaw) |
 | New retro page + week's pages → woven into graph | `cross-linker` (Step 9 Phase A, **week-delta scope, not vault-wide**) |
-| Brag capture (week's accomplishments → raw inputs) | Step 1b (silent, no gate) + Step 3.1 Q&A → `brag/<YYYY>-inputs.md` |
+| Brag capture (week's accomplishments → raw inputs) | Step 1b (silent, no gate) + §3.1 Q&A → `brag/<YYYY>-inputs.md` |
 | Inferred-claims validation (mini-session, ≥20 claims) | `wiki-verify` (Step 2b — the skill's only recurring trigger) |
-| Hot topics hebdo → architectural impact radar | Step 9 Phase A item 3 (weekly REPLACE) → `synthesis/hot-topics.md` |
+| Weekly hot topics → architectural impact radar | Step 9 Phase A item 3 (weekly REPLACE) → `synthesis/hot-topics.md` |
 | Vault health fixes (analyse → confirm → apply) | `wiki-lint` dry-run **scoped to the week's delta** → batched confirm → `--consolidate` on approved set (Step 9 B–D) |
 | Monthly synthesis (additive) | `wiki-synthesize` (Step 9 Phase A, first retro of month) |
 | Monthly dedup / tag fixes (analyse → confirm → apply) | `wiki-dedup` · `tag-taxonomy` (Step 9 B–D, first retro of month) |
 | Monthly digest | `wiki-digest month` (Step 9 Phase A) |
-| Monthly rétro mensuelle | Step 9 Phase A item 5a (last retro of month) → `retros/YYYY-MM-monthly.md` |
+| Monthly retro | Step 9 Phase A item 5a (last retro of month) → `retros/YYYY-MM-monthly.md` |
 | Monthly brag compilation (inputs → Julia Evans doc) | Step 9 Phase A item 5b (last retro of month) → `brag/<YYYY>.md` |
 | Tag consistency on any new page | `tag-taxonomy` (inside `wiki-ingest`) |
 
 ## Limits & notes
 
 - **Interactive by design** — never run unattended/cron. The `{{profile.tools.retro_day}}` `morning-brief` only *nudges*; it does not run the retro. The Step 9 maintenance tail runs *after* the retro body: its additive work (ingests, cross-links, synthesis) is silent, but destructive fixes go through **one batched confirmation** (Phase C) while {{profile.owner.name}} is still present — analysis and apply happen in subagents, only the gate is interactive. It never applies a destructive change {{profile.owner.name}} didn't approve, and never defers a fix he *did* approve.
-- Standard depth ≈ 20 min. If {{profile.owner.name}} asks for "express", do Steps 1–2 + sections 1,2,3,8,10 only, **and run Step 9 Phase A only** (additive ingests + cross-linker) — skip the analyse/confirm/apply phases (B–D); their fixes wait for a full retro or a manual skill run. If "profond", add relances and deep-dive recurring patterns (fin de trimestre).
+- Standard depth ≈ 20 min. If {{profile.owner.name}} asks for "express", do Steps 1–2 + §3.1, §3.2, §3.3, §3.8, §3.10 only, **and run Step 9 Phase A only** (additive ingests + cross-linker) — skip the analyse/confirm/apply phases (B–D); their fixes wait for a full retro or a manual skill run. If "profond", add deeper follow-up probes and deep-dive recurring patterns (end of quarter).
 - Ground everything in evidence from Step 1 — if a claim has no brief/task/permalink behind it, mark it as {{profile.owner.name}}'s recollection, not fact.
 - Keep accomplishments **impact-framed** — the annual review needs outcomes, not activity logs.
 - Never delete goals or checked actions; closed ≠ deleted (annual-review evidence).
 - No Claude footer in the written retro.
-- `date` weekday: 1=Mon … 5=Fri … 7=Sun. The retro normally runs on `{{profile.tools.retro_day}}` (its ISO weekday number). Run Mon–Wed with last week un-retro'd → catch-up flow (Step 0.5) targets the previous week; run Thu–Fri in that situation → single two-week retro. Run mid-week with last week already covered → current ISO week to-date, and say so.
+- `date` weekday: 1=Mon … 5=Fri … 7=Sun. `retro_dow` is the ISO weekday number of `{{profile.tools.retro_day}}` (friday → 5). With last week un-retro'd, `gap = retro_dow − weekday`: `gap ≥ 2` (well before the slot, e.g. Mon–Wed for a Friday retro) → catch-up flow (Step 0) targets the previous week; `gap ≤ 1` (on or after the slot, e.g. Thu–Fri) → single two-week retro. Run mid-week with last week already covered → current ISO week to-date, and say so.
 - Corrupted state file → reset to `{}`/fallback, never crash.
