@@ -66,7 +66,7 @@ Present this draft to {{profile.owner.name}} as the opening of the session, then
 
 ### Step 1b — Continuous brag capture (silent, no user interaction)
 
-**Immediately after** producing the « Semaine en bref » draft, extract notable accomplishments from the evidence gathered in Step 1 and append them to `brag/<YYYY>-inputs.md`, where `<YYYY>` is the year of the period being retro'd — derive it from `target_week`/the window, not from today, so a late-retro catch-up that lands in the previous year files into that year's brag. Do this silently — no questions, no confirmation. A notable accomplishment qualifies if it is: a decision arbitrated, a design doc delivered, an incident resolved, a squad unblocked, a delivery shipped, or a cross-team contribution. Each item on one line:
+**Immediately after** producing the « Semaine en bref » draft, extract notable accomplishments from the evidence gathered in Step 1 and append them to `brag/<YYYY>-inputs.md`, where `<YYYY>` is the year of the period being retro'd — derive it from `target_week`/the window, not from today, so a late-retro catch-up that lands in the previous year files into that year's brag. Do this silently — no questions, no confirmation. A notable accomplishment qualifies if it is: a decision arbitrated, a design doc delivered, an incident resolved, a squad unblocked, a delivery shipped, or a cross-team contribution. A portfolio milestone also qualifies: an initiative you carry (`engagement: porteur`) reaching `status: done`, or a `next:` step shipped within the window — file it as a brag line (the portfolio is a brag feed). Each item on one line:
 
 ```
 - YYYY-MM-DD — <action concise> — impact: <impact pour qui, quel résultat> — preuve: [[page]] ou lien Jira/MR
@@ -109,6 +109,9 @@ Walk these ten sections **in order** (cited elsewhere as §3.1 … §3.10), each
 6. **Apprentissages.** Ce que tu as appris cette semaine ; un truc que tu referais autrement.
 7. **Collaboration.** Qui tu as aidé, qui t'a aidé, frictions interpersonnelles/équipe à désamorcer. Prime this from the Step-1 resolved attendees: name the people {{profile.owner.name}} actually worked with this week **with their perimeter** (e.g. "tu as bossé avec X (Tech Lead Search, périmètre indexation) sur …"), so the collaboration map is concrete and tied to who owns what — not a vague "j'ai aidé des gens". Surface cross-team collaboration explicitly (working outside one's own perimeter is visibility-worthy). If the week revealed someone's perimeter changed, that's a cue to update their `entities/` page.
 8. **Objectifs.** Walk each active goal from `goals.md`: avancement depuis la dernière revue ? statut (`en-cours`/`atteint`/`abandonné`/`en-pause`) ? Flag any goal with no movement for **2+ weeks** as `⚠️ stallé` and ask whether to renew, re-scope, or drop. Then ask for **new goals** by horizon (court/moyen/long).
+
+**§3.8b — Portefeuille projets.** Run `python3 "$OBSIDIAN_VAULT_PATH/_meta/scripts/portfolio.py"` and read `stale[]`. For each stalled initiative, surface it (`{title} — {engagement} — stagne {days_stale}j`) and ask, via `AskUserQuestion`: **focus / pause / drop / re-scope?** The point is to decide where attention goes and cut dead weight — don't relitigate initiatives that are moving. Capture each decision for Step 6b.
+
 9. **Actions d'amélioration.** From everything above, agree on a small set of concrete actions (quality over quantity — 2 to 5). These go to `open-actions.md`.
 10. **Top 3 semaine prochaine.** The three priorities for next week → injected into Monday's `morning-brief` context and recorded in the retro.
 
@@ -175,6 +178,9 @@ period: [{monday}, {today}]
 ## 🎯 Objectifs — revue
 - {objectif} — {statut} — {avancement} {⚠️ stallé si applicable}
 
+## 📁 Portefeuille — revue
+- {initiative} — {engagement} — {status} — mouv {last_movement} — décision: {focus|pause|drop|re-scope}
+
 ## 🔁 Patterns récurrents
 - {theme} — {N} semaines — {action / escaladé en [[decision]]}
 
@@ -208,6 +214,14 @@ Apply the §3.8 (Objectifs) outcomes to `goals.md`:
 - Mark goals with no progress for 2+ weeks (no `revu:`/`progrès:` movement) as `⚠️ stallé` inline.
 - Move newly `atteint`/`abandonné` goals to `## ✅ Clôturés` with `✅{today}` or status + date, and a `- bilan:` line. **Never delete** a goal — closed goals are annual-review evidence.
 - Append new goals under the right horizon section with `➕{today}` and a target `🎯` date.
+
+### Step 6b — Update initiative status
+
+Apply the §3.8b decisions to each initiative hub (UPDATE in-place, AGENTS.md discipline — no prose history):
+- **pause** or **drop** → `status: paused`. **shipped/closed** → `status: done`. The page stays; the gardener archives it later when eligible.
+- **re-scope / focus** → update `next:` (and `engagement:` if the role changed).
+- Never write `last_movement` — it is derived by `portfolio.py`.
+- After writing, re-run `python3 "$OBSIDIAN_VAULT_PATH/_meta/scripts/portfolio.py" --apply` so `_portfolio.md` reflects the decisions.
 
 ### Step 7 — Update open-actions.md
 
@@ -366,6 +380,7 @@ A second mode that turns the weekly history into a self-assessment draft. This i
 | Monthly retro | Step 9 Phase A item 5a (last retro of month) → `retros/YYYY-MM-monthly.md` |
 | Monthly brag compilation (inputs → Julia Evans doc) | Step 9 Phase A item 5b (last retro of month) → `brag/<YYYY>.md` |
 | Tag consistency on any new page | `tag-taxonomy` (inside `wiki-ingest`) |
+| Portfolio triage (stalled → focus/pause/drop) | §3.8b Q&A + Step 6b → initiative `status`/`next` |
 
 ## Limits & notes
 

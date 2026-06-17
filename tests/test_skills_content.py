@@ -202,3 +202,10 @@ def test_morning_brief_runs_portfolio_and_loads_json():
 def test_brief_template_has_portfolio_section():
     txt = (DATA / "skills" / "morning-brief" / "references" / "brief-template.md").read_text(encoding="utf-8")
     assert "📁 Portefeuille" in txt
+
+
+def test_weekly_retro_has_portfolio_triage_and_writeback():
+    txt = (DATA / "skills" / "weekly-retro" / "SKILL.md").read_text(encoding="utf-8")
+    assert "portfolio.py" in txt
+    assert "Portefeuille" in txt
+    assert "Step 6b" in txt
