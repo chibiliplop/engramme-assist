@@ -151,3 +151,9 @@ def test_wiki_ingest_step3_is_initiative_aware():
     assert "entities/<Repo>.md" in t
     assert "catch-all" in t
     assert "status: active" in t
+
+
+def test_morning_brief_loads_initiative_index():
+    t = _read("morning-brief")
+    assert "initiative_index.py" in t
+    assert "Pass a compact form" in t
