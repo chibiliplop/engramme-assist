@@ -137,3 +137,8 @@ def test_morning_brief_template_keeps_output_contract():
         "under 1,200 words",
     ):
         assert marker in template, marker
+
+
+def test_wiki_ingest_is_adopted_with_origin_marker():
+    t = _read("wiki-ingest")
+    assert "adopted from obsidian-wiki==2026.6.5" in t
