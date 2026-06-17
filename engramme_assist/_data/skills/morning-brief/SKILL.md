@@ -159,6 +159,25 @@ Aggregate `recurring_topics` from A2, B and C.
    - Confluence RFC merged
    - explicit decision logged in Slack
    - otherwise mention only in the brief, keeping the counter
+
+**Initiative routing (per recurring topic, from A2/C tags):**
+- `project` non-null + `project_confidence: high` + initiative `status: active` →
+  **bypass the recurrence gate**: stage `_raw/morning-brief/<date>-<slug>.md` titled exactly
+  as the target page (the index entry's hub title, or an existing `projects/<slug>/references/`
+  page), invoke `wiki-ingest` with `PROJECT_CREATE=false`. Still increment the counter for
+  traceability, but do not wait for `hits >= 3`.
+- `new_project_candidate` present → collect it for the prompt below; do not create anything yet.
+- Otherwise → unchanged counter + `hits >= 3` gate (a standalone global page).
+
+**New-initiative prompt** (only when the collected `new_project_candidate` set is non-empty
+**and** the run is interactive): ask **one** `AskUserQuestion` (multiSelect) listing up to 4
+candidates (beyond 4, take the top 4 by signal strength and list the rest in the brief). Each
+option shows `proposed_slug` + `proposed_title`; `Other` lets the owner rename — the slug is the
+owner's choice. For each chosen candidate, create `projects/<slug>/` via `wiki-ingest` with
+`PROJECT_CREATE=true`, then feed the topic into it. Non-chosen candidates fall back to the
+counter/gate rule. In a **non-interactive** run, create nothing — list the candidates under
+`## 🌱 Recurring topics` for the next interactive session.
+
 3. If D returned `new_people`, route staged `_raw/morning-brief/people/*.md` stubs through `wiki-ingest` unconditionally; a first encountered named attendee gets a person page immediately.
 4. Spawn two parallel one-pass subagents on `<synth_model>`:
    - **5a people** when `new_people` is non-empty: invoke `wiki-ingest` on `_raw/morning-brief/people/*.md`; verify final pages are named `entities/Prénom Nom.md` per `references/person-entity-convention.md`.

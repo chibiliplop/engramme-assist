@@ -165,3 +165,12 @@ def test_agents_emit_initiative_tags():
         assert "project_confidence" in t
         assert "new_project_candidate" in t
         assert "initiative index" in t
+
+
+def test_morning_brief_step5_routing_and_prompt():
+    t = _read("morning-brief")
+    assert "bypass the recurrence gate" in t
+    assert "PROJECT_CREATE=false" in t
+    assert "PROJECT_CREATE=true" in t
+    assert "New-initiative prompt" in t
+    assert "non-interactive" in t
