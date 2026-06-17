@@ -3,6 +3,13 @@ from pathlib import Path
 from engramme_assist import install
 
 SKILLS = Path(install.__file__).resolve().parent / "_data" / "skills"
+DATA = Path(install.__file__).resolve().parent / "_data"
+
+
+def test_agents_generic_documents_portfolio_engagement():
+    txt = (DATA / "AGENTS.generic.md").read_text(encoding="utf-8")
+    for token in ("engagement:", "porteur", "contributeur", "observateur"):
+        assert token in txt, token
 
 
 def _read(name: str) -> str:

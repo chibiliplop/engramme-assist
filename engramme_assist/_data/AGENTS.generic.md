@@ -71,6 +71,41 @@ Every wiki page has required frontmatter: `title`, `category`, `tags`, `sources`
 
 **Effect on `wiki-update`**: run from a repo, it updates the **codebase entity** (durable facts) and creates/updates the relevant **initiatives** separately — never a catch-all `projects/<repo>/` folder. Session-log noise (one-off debugging, meeting prep, MR chatter) does not belong on the codebase entity; it is distilled into the relevant initiative or dropped.
 
+### Portefeuille — engagement & momentum (sur les initiatives)
+
+Une initiative rejoint le **portefeuille** en portant `engagement` ; c'est le sélecteur. Deux champs s'ajoutent au frontmatter initiative existant (on **réutilise son `status`** pour le cycle de vie, on n'en crée pas d'autre) :
+
+```yaml
+engagement: porteur          # porteur | contributeur | observateur — niveau d'implication (seul champ vraiment manuel)
+next: "prochaine étape"      # optionnel, une ligne
+# status: active | done | paused  ← déjà sur l'initiative ; réutilisé tel quel
+```
+
+- `last_movement` et la stagnation sont **dérivés** par `_meta/scripts/portfolio.py` (max de : `updated`, mtime des sessions Claude listées dans `sources:`, dernière mention dans `topics-counter.json`) — ne jamais les stocker.
+- Sortir du portefeuille = `status: paused` (mis en pause / abandonné) ou `status: done` (livré). Stale ne se calcule que sur `status: active`.
+- **Initiative observée sans dossier** : créer un hub minimal —
+
+```yaml
+---
+title: <Nom de l'initiative>
+category: projects
+tags: [project, <domaine>]
+team: "[[<équipe porteuse, si connue>]]"
+status: active
+engagement: observateur
+summary: <une phrase — pourquoi je la surveille>
+created: <date>
+updated: <date>
+review_due: <+14j>
+---
+
+# <Nom de l'initiative>
+
+<Une phrase de contexte. La page s'étoffera si l'engagement se renforce.>
+```
+
+Vues : bloc `## 📁 Portefeuille` du brief du matin + vue dérivée `projects/_portfolio.md`. Arbitrage (focus/pause/drop) en `weekly-retro`.
+
 ## Skill Routing
 
 Skills live in `.skills/<name>/SKILL.md`. Match the user's intent to the right skill:
