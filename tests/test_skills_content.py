@@ -174,3 +174,9 @@ def test_morning_brief_step5_routing_and_prompt():
     assert "PROJECT_CREATE=true" in t
     assert "New-initiative prompt" in t
     assert "non-interactive" in t
+
+
+def test_architecture_notes_document_routing():
+    t = _read_ref("morning-brief", "architecture-notes.md")
+    assert "initiative_index.py" in t
+    assert "PROJECT_CREATE=false" in t

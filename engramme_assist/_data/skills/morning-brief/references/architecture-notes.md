@@ -30,3 +30,5 @@ runs do not need to read this file.
 | Cross-linking new pages | `cross-linker` after Step 5 staging |
 | Tag consistency | `tag-taxonomy` inside `wiki-ingest` |
 | Wiki maintenance | `daily-update` (Agent E final pass) |
+| Ambient topic -> initiative page | `morning-brief` Step 5 (high-confidence active match, gate bypass) via `wiki-ingest` `PROJECT_CREATE=false`; index from `initiative_index.py` |
+| New-initiative creation | human-confirmed in the brief (batched `AskUserQuestion`); never silent from ambient sources |
