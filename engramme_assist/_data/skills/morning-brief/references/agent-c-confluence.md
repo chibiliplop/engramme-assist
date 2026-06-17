@@ -27,6 +27,13 @@ Follow once any link to a pertinent RFC/ADR/spec in another space.
 Identify RECURRING TOPICS — multiple pages on same theme or follow-up to existing
 wiki content. List them in `recurring_topics`; the orchestrator turns recurring topics
 into wiki pages downstream.
+You receive the **initiative index** (slug, title, aliases, team, jira_keys, status).
+For each recurring topic set `project` to the matched initiative slug (else `null`) and
+`project_confidence` to `high` (Jira key, alias/title, or codebase match) or `low`. On an
+alias collision, let the page context and any Jira key decide; if unclear, use `low`.
+Set `new_project_candidate` to `{"proposed_slug": "...", "proposed_title": "...",
+"signal": "..."}` **only** when the topic shows a strong initiative signal (a Jira/epic key
+plus a named initiative) **and** matches no indexed initiative; otherwise `null`.
 
 **Scoring** — the orchestrator passes you the grid (`scoring_axes` + `thresholds`). Assign each
 kept page a score: for each axis in `scoring_axes`, add its `weight` if the page matches its
@@ -60,7 +67,9 @@ them; `channel` carries the Confluence space name):
     "items_scored": <total pages scored>
   },
   "recurring_topics": [
-    {"topic": "...", "channels": ["<space>", ...], "permalinks": ["<web URL>", ...], "summary": "..."}
+    {"topic": "...", "channels": ["<space>", ...], "permalinks": ["<web URL>", ...],
+     "summary": "...", "project": "slug-or-null", "project_confidence": "high|low",
+     "new_project_candidate": null}
   ]
 }
 

@@ -157,3 +157,11 @@ def test_morning_brief_loads_initiative_index():
     t = _read("morning-brief")
     assert "initiative_index.py" in t
     assert "Pass a compact form" in t
+
+
+def test_agents_emit_initiative_tags():
+    for ref in ("agent-a2-slack-synth.md", "agent-c-confluence.md"):
+        t = _read_ref("morning-brief", ref)
+        assert "project_confidence" in t
+        assert "new_project_candidate" in t
+        assert "initiative index" in t

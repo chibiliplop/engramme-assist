@@ -39,6 +39,13 @@ For each cluster:
 Also identify RECURRING TOPICS — same theme appearing across ≥3 messages or across multiple
 channels. List them in `recurring_topics`; the orchestrator turns recurring topics into wiki
 pages downstream.
+You receive the **initiative index** (slug, title, aliases, team, jira_keys, status).
+For each recurring topic set `project` to the matched initiative slug (else `null`) and
+`project_confidence` to `high` (Jira key, alias/title, or codebase match) or `low`. On an
+alias collision, let the thread context and any Jira key decide; if unclear, use `low`.
+Set `new_project_candidate` to `{"proposed_slug": "...", "proposed_title": "...",
+"signal": "..."}` **only** when the topic shows a strong initiative signal (a Jira/epic key
+plus a named initiative) **and** matches no indexed initiative; otherwise `null`.
 
 Also detect NEW ACTIONS for `<owner_name>` — patterns like: "est-ce que tu peux", "tu peux me", "j'attends ta réponse", "relance-moi", "on attend `<owner_name>`", "waiting on you", direct questions in DMs/mentions left unanswered. Flag with the person's name and a 1-line description.
 
@@ -80,7 +87,9 @@ Output structure:
     "unscanned": ["<source name>", ...]
   },
   "recurring_topics": [
-    {"topic": "...", "channels": [...], "permalinks": [...], "summary": "..."}
+    {"topic": "...", "channels": [...], "permalinks": [...], "summary": "...",
+     "project": "slug-or-null", "project_confidence": "high|low",
+     "new_project_candidate": null}
   ],
   "new_actions": [
     {"person": "@name", "action": "description ≤80 chars", "permalink": "..."}
