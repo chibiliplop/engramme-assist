@@ -103,7 +103,7 @@ After A1 returns:
 
 **Initiative index** — run the helper once and keep its JSON for Step 3 and Step 5:
 `OBSIDIAN_VAULT_PATH="$OBSIDIAN_VAULT_PATH" python3 "$OBSIDIAN_VAULT_PATH/_meta/scripts/initiative_index.py"`.
-Pass a compact form (`slug, title, aliases, team, jira_keys, status`) to agents A2 and C
+Pass a compact form (`slug, title, aliases, team, jira_keys, status, codebases`) to agents A2 and C
 so they can tag each recurring topic with the initiative it matches.
 
 ### Step 3 - Parallel Synthesis Agents

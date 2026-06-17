@@ -99,3 +99,40 @@ def test_dir_without_hub_is_skipped(tmp_path):
 
 def test_missing_projects_dir_returns_empty(tmp_path):
     assert _load().build_index(str(tmp_path)) == []
+
+
+def test_inline_list_field_with_trailing_yaml_comment(tmp_path):
+    """inline-list: trailing ' # comment' must not corrupt parse."""
+    _hub(
+        tmp_path, "messagerie-candidat-recruteur",
+        "title: Messagerie\n"
+        "category: projects\n"
+        'codebases: ["[[Hw.Emploi.Platform]]"]  # + app mobile iOS/Android (codebase non trackée)\n'
+        "status: active",
+    )
+    e = _by_slug(_load().build_index(str(tmp_path)), "messagerie-candidat-recruteur")
+    assert e["codebases"] == ["Hw.Emploi.Platform"]
+
+
+def test_scalar_field_with_trailing_yaml_comment(tmp_path):
+    """scalar: trailing ' # comment' must be stripped from the value."""
+    _hub(
+        tmp_path, "scalar-comment",
+        "title: My Project  # this is a note\n"
+        "category: projects\n"
+        "status: active",
+    )
+    e = _by_slug(_load().build_index(str(tmp_path)), "scalar-comment")
+    assert e["title"] == "My Project"
+
+
+def test_scalar_hash_mid_value_preserved(tmp_path):
+    """A '#' not preceded by whitespace must NOT be stripped (e.g. colour #fff)."""
+    _hub(
+        tmp_path, "hash-mid",
+        "title: Tag#123\n"
+        "category: projects\n"
+        "status: active",
+    )
+    e = _by_slug(_load().build_index(str(tmp_path)), "hash-mid")
+    assert e["title"] == "Tag#123"

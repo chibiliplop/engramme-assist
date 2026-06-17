@@ -39,7 +39,7 @@ For each cluster:
 Also identify RECURRING TOPICS — same theme appearing across ≥3 messages or across multiple
 channels. List them in `recurring_topics`; the orchestrator turns recurring topics into wiki
 pages downstream.
-You receive the **initiative index** (slug, title, aliases, team, jira_keys, status).
+You receive the **initiative index** (slug, title, aliases, team, jira_keys, status, codebases).
 For each recurring topic set `project` to the matched initiative slug (else `null`) and
 `project_confidence` to `high` (Jira key, alias/title, or codebase match) or `low`. On an
 alias collision, let the thread context and any Jira key decide; if unclear, use `low`.

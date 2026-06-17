@@ -19,13 +19,18 @@ def _frontmatter(text):
 
 
 def _scalar(fm_text, key):
-    m = re.search(rf"^{key}:\s*['\"]?(.+?)['\"]?\s*$", fm_text, re.M)
-    return m.group(1).strip() if m else ""
+    m = re.search(rf"^{key}:\s*['\"]?(.+?)['\"]?\s*(?:\s#.*)?$", fm_text, re.M)
+    if not m:
+        return ""
+    val = m.group(1).strip()
+    # strip a trailing whitespace-preceded YAML comment (e.g. `value  # note`)
+    val = re.sub(r"\s+#.*$", "", val)
+    return val
 
 
 def _list_field(fm_text, key):
     """Values of a frontmatter field in inline [..], block (- x), or scalar form."""
-    m = re.search(rf"^{key}:\s*\[(.+)\]\s*$", fm_text, re.M)
+    m = re.search(rf"^{key}:\s*\[(.+)\]\s*(?:#.*)?$", fm_text, re.M)
     if m:
         return [v.strip().strip("'\"") for v in m.group(1).split(",") if v.strip()]
     if re.search(rf"^{key}:\s*$", fm_text, re.M):

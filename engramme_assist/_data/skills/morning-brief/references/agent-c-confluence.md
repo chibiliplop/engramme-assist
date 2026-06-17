@@ -27,7 +27,7 @@ Follow once any link to a pertinent RFC/ADR/spec in another space.
 Identify RECURRING TOPICS — multiple pages on same theme or follow-up to existing
 wiki content. List them in `recurring_topics`; the orchestrator turns recurring topics
 into wiki pages downstream.
-You receive the **initiative index** (slug, title, aliases, team, jira_keys, status).
+You receive the **initiative index** (slug, title, aliases, team, jira_keys, status, codebases).
 For each recurring topic set `project` to the matched initiative slug (else `null`) and
 `project_confidence` to `high` (Jira key, alias/title, or codebase match) or `low`. On an
 alias collision, let the page context and any Jira key decide; if unclear, use `low`.
