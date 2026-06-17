@@ -192,3 +192,13 @@ def test_architecture_notes_document_routing():
 def test_daily_update_runs_portfolio_script():
     txt = (DATA / "skills" / "daily-update" / "SKILL.md").read_text(encoding="utf-8")
     assert "portfolio.py" in txt
+
+
+def test_morning_brief_runs_portfolio_and_loads_json():
+    txt = (DATA / "skills" / "morning-brief" / "SKILL.md").read_text(encoding="utf-8")
+    assert "portfolio.py" in txt and "portfolio.json" in txt
+
+
+def test_brief_template_has_portfolio_section():
+    txt = (DATA / "skills" / "morning-brief" / "references" / "brief-template.md").read_text(encoding="utf-8")
+    assert "📁 Portefeuille" in txt

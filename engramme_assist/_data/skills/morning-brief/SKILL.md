@@ -106,6 +106,10 @@ After A1 returns:
 Pass a compact form (`slug, title, aliases, team, jira_keys, status, codebases`) to agents A2 and C
 so they can tag each recurring topic with the initiative it matches.
 
+**Portfolio snapshot** — alongside the initiative index, run
+`python3 "$OBSIDIAN_VAULT_PATH/_meta/scripts/portfolio.py" --apply` and keep `_meta/portfolio.json`
+for the `## 📁 Portefeuille` block (rendered in Step 4). Do **not** read initiative pages — the JSON is the source. Skip the block if the output is `{"disabled": true}` or `projects` is empty.
+
 ### Step 3 - Parallel Synthesis Agents
 
 Spawn A2, B, C and D in one parallel batch on `<synth_model>`:

@@ -46,6 +46,26 @@ Read `goals.md` at the vault root. For each active objective, emit at most 3 lin
 
 Detect this week's actions by scanning `state/open-actions.md` and the 5 most recent journal entries for keywords matching the objective title. If none were found, write `aucune action cette semaine`. If `goals.md` is absent or has no active objective, omit `## 🎯 Objectifs`.
 
+### `## 📁 Portefeuille`
+
+Source: `_meta/portfolio.json`. **Why compact**: the brief must be glanceable, so name only what needs a decision and collapse the rest into a counter.
+
+Rules:
+- Omit the whole section if `projects` is empty or the script returned `{"disabled": true}`.
+- One line per engagement tier present, ordered porteur → contributeur → observateur, prefixed `🔴`/`🟡`/`⚪`.
+- On a tier line, name only initiatives that are `status: active` AND (`is_stale` OR have a `next`). For each: bold title; if `is_stale`, append `stagne {days_stale}j`; else if `next`, append `→ {next}`.
+- Collapse active-but-calm initiatives (not stale, no `next`) into a trailing `· +N au calme`. Collapse all non-stale observateur into `⚪ observateur — N en veille (RAS)`.
+- Omit a tier line if it has no active initiative.
+
+Example:
+
+```markdown
+## 📁 Portefeuille
+- 🔴 porteur — **Doublons/Reboost** → MEP juillet · **Golden path** stagne 12j
+- 🟡 contributeur — **Alerting serial** stagne 18j · +2 au calme
+- ⚪ observateur — 3 en veille (RAS)
+```
+
 ## Template
 
 ```markdown
