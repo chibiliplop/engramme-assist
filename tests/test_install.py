@@ -261,6 +261,11 @@ def test_initiative_and_portfolio_scripts_are_placed(tmp_path):
         assert (vault / "_meta" / "scripts" / script).is_file(), script
 
 
+def test_profile_example_has_portfolio_block():
+    txt = (install.data_root() / "skills" / "wiki-profile" / "profile.example.yml").read_text(encoding="utf-8")
+    assert "portfolio:" in txt and "stale_days:" in txt
+
+
 def test_run_upstream_setup_local_adds_project_only(monkeypatch):
     # Patch the real cli.main directly (robust to import order, unlike sys.modules).
     import obsidian_wiki.cli as upstream_cli
