@@ -260,6 +260,25 @@ def _resolve_vault(cli_vault: str | None) -> str:
     return ""
 
 
+def place_vault_files(root: Path, vault_path: Path) -> None:
+    """Non-destructively place vault files (AGENTS.md, profile example, scripts).
+
+    Extracted so tests can call it directly without wiring a full argparse Namespace.
+    """
+    if place_if_absent(root / "AGENTS.generic.md", vault_path / "AGENTS.md"):
+        print("✅  AGENTS.md written from AGENTS.generic.md")
+    else:
+        shutil.copyfile(root / "AGENTS.generic.md", vault_path / "AGENTS.generic.md")
+        print("ℹ️  AGENTS.md exists — left as-is; reference copy at AGENTS.generic.md")
+    # Single source of truth: the example shipped inside the wiki-profile skill (kept in sync
+    # with that skill's documented schema), reused here so there is no second divergent copy.
+    profile_example = root / "skills" / "wiki-profile" / "profile.example.yml"
+    place_if_absent(profile_example, vault_path / "_meta" / "profile.example.yml")
+    for script in ("gardener.py", "insights.py", "initiative_index.py", "portfolio.py"):
+        place_if_absent(root / "scripts" / script, vault_path / "_meta" / "scripts" / script)
+    print("✅  profile.example.yml + vault scripts placed (if absent)")
+
+
 def cmd_install(args: argparse.Namespace) -> int:
     mode = "copy" if args.copy else default_mode()
     vault = _resolve_vault(args.vault)
@@ -285,18 +304,7 @@ def cmd_install(args: argparse.Namespace) -> int:
     print(f"✅  Overlay skills → {len(targets)} agent dir(s): {', '.join(OVERLAY_SKILLS)}")
 
     # Non-destructive vault files.
-    if place_if_absent(root / "AGENTS.generic.md", vault_path / "AGENTS.md"):
-        print("✅  AGENTS.md written from AGENTS.generic.md")
-    else:
-        shutil.copyfile(root / "AGENTS.generic.md", vault_path / "AGENTS.generic.md")
-        print("ℹ️  AGENTS.md exists — left as-is; reference copy at AGENTS.generic.md")
-    # Single source of truth: the example shipped inside the wiki-profile skill (kept in sync
-    # with that skill's documented schema), reused here so there is no second divergent copy.
-    profile_example = root / "skills" / "wiki-profile" / "profile.example.yml"
-    place_if_absent(profile_example, vault_path / "_meta" / "profile.example.yml")
-    for script in ("gardener.py", "insights.py"):
-        place_if_absent(root / "scripts" / script, vault_path / "_meta" / "scripts" / script)
-    print("✅  profile.example.yml + gardener scripts placed (if absent)")
+    place_vault_files(root, vault_path)
 
     print('\nNext: open the vault in your agent and say "set up my wiki" (→ wiki-init).')
     return 0

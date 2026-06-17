@@ -253,6 +253,14 @@ def test_overlay_skill_targets_global_plus_project(tmp_path):
     assert len(targets) == len(set(targets))                    # de-duplicated
 
 
+def test_initiative_and_portfolio_scripts_are_placed(tmp_path):
+    vault = tmp_path / "vault"
+    (vault / "_meta" / "scripts").mkdir(parents=True)
+    install.place_vault_files(install.data_root(), vault)
+    for script in ("gardener.py", "insights.py", "initiative_index.py", "portfolio.py"):
+        assert (vault / "_meta" / "scripts" / script).is_file(), script
+
+
 def test_run_upstream_setup_local_adds_project_only(monkeypatch):
     # Patch the real cli.main directly (robust to import order, unlike sys.modules).
     import obsidian_wiki.cli as upstream_cli
