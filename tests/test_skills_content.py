@@ -142,3 +142,12 @@ def test_morning_brief_template_keeps_output_contract():
 def test_wiki_ingest_is_adopted_with_origin_marker():
     t = _read("wiki-ingest")
     assert "adopted from obsidian-wiki==2026.6.5" in t
+
+
+def test_wiki_ingest_step3_is_initiative_aware():
+    t = _read("wiki-ingest")
+    assert "initiative_index.py" in t
+    assert "PROJECT_CREATE" in t
+    assert "entities/<Repo>.md" in t
+    assert "catch-all" in t
+    assert "status: active" in t

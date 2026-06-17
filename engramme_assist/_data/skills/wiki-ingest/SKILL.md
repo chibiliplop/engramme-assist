@@ -234,12 +234,32 @@ You'll apply markers in Step 5. Don't conflate these — the wiki's value depend
 
 ### Step 3: Determine Project Scope
 
-If the source belongs to a specific project:
-- Place project-specific knowledge under `projects/<project-name>/<category>/`
-- Place general knowledge in global category directories
-- Create or update the project overview at `projects/<name>/<name>.md` (named after the project — never `_project.md`, as Obsidian uses filenames as graph node labels)
+`projects/` holds **initiatives** (bounded efforts), never codebases. A codebase
+(durable repo/library) belongs in `entities/<Repo>.md`. **Never** create a
+catch-all `projects/<repo>/` folder.
 
-If the source is not project-specific, put everything in global categories.
+1. **Load the initiative index** — run the helper and read its JSON:
+   `OBSIDIAN_VAULT_PATH="$OBSIDIAN_VAULT_PATH" python3 "$OBSIDIAN_VAULT_PATH/_meta/scripts/initiative_index.py"`
+   (each entry: `slug, path, title, aliases, team, codebases, jira_keys, status`).
+2. **Match the source** against the index: overlap on `title`/`aliases`, a shared
+   **Jira key**, or a `codebases`/`tags` overlap. Confidence is `high` if a Jira key,
+   alias/title, or codebase matches; otherwise `low`. On an alias collision between
+   related initiatives, the Jira key disambiguates; with no clear discriminant, treat
+   it as `low`.
+3. **If a `high` match on a `status: active` initiative and the source is *primarily*
+   about it:** place project-specific pages under `projects/<slug>/<category>/` and
+   **update the existing hub** at the entry's `path` — never a second folder/hub.
+4. **If the source is about a codebase** (a repo/library, not a bounded effort): write
+   durable facts to `entities/<Repo>.md` (`category: entities`, `tags: [codebase, …]`),
+   not to `projects/`.
+5. **Cross-cutting / multi-initiative / synthesis** content stays in global category
+   directories.
+6. **Creation is gated by `PROJECT_CREATE`** (default `true`):
+   - `true` (manual ingest): if the user explicitly scopes an initiative that does not
+     exist yet, you may create `projects/<slug>/`.
+   - `false` (passed by ambient callers such as morning-brief): **never** create a new
+     `projects/<slug>/`; attach to an existing initiative or fall back to global.
+7. Do not retroactively re-file existing pages — scope only the matter of this ingest.
 
 ### Step 4: Plan Updates
 
