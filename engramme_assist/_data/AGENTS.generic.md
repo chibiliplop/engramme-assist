@@ -60,6 +60,17 @@ $OBSIDIAN_VAULT_PATH/
 
 Every wiki page has required frontmatter: `title`, `category`, `tags`, `sources`, `created`, `updated`. Pages connect via internal links — `[[wikilinks]]` by default, or standard Markdown links when `OBSIDIAN_LINK_FORMAT=markdown` is set in config.
 
+## Project Scoping — initiative vs codebase
+
+`projects/` holds **initiatives**, never codebases. The two are distinct natures and must not be mixed (a repo aggregates dozens of unrelated efforts → a catch-all):
+
+- **Initiative → `projects/<slug>/`** — a *bounded* effort (goal, status, team, often a tracker key). Frontmatter: `team:` (wikilink to a team entity), `status:` (`active` | `done` | `paused`), `codebases:` (the repo[s] it touches), tracker key (if known). `review_due` = `updated` + 14 days.
+- **Codebase → `entities/<Repo>.md`** — a *durable* repo/library that persists and accrues work across many initiatives. `category: entities`, `tags: [codebase, …]`, `review_due` = +90 days, **no `team:`** (a shared repo belongs to no single squad), **no hardcoded `## Key Projects` list** (backlinks from initiatives replace it). Durable facts live here: git path, architecture, harness setup, conventions, build/test.
+
+`team:` uses the **functional team name** (not a rotating codename, which stays as an `aliases:` entry on the team entity). If an initiative needs a team that has no entity yet, ask and create the team entity.
+
+**Effect on `wiki-update`**: run from a repo, it updates the **codebase entity** (durable facts) and creates/updates the relevant **initiatives** separately — never a catch-all `projects/<repo>/` folder. Session-log noise (one-off debugging, meeting prep, MR chatter) does not belong on the codebase entity; it is distilled into the relevant initiative or dropped.
+
 ## Skill Routing
 
 Skills live in `.skills/<name>/SKILL.md`. Match the user's intent to the right skill:
