@@ -187,3 +187,8 @@ def test_architecture_notes_document_routing():
     t = _read_ref("morning-brief", "architecture-notes.md")
     assert "initiative_index.py" in t
     assert "PROJECT_CREATE=false" in t
+
+
+def test_daily_update_runs_portfolio_script():
+    txt = (DATA / "skills" / "daily-update" / "SKILL.md").read_text(encoding="utf-8")
+    assert "portfolio.py" in txt

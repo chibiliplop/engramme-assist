@@ -54,6 +54,14 @@ python3 "$OBSIDIAN_VAULT_PATH/_meta/scripts/gardener.py" --apply
 
 One call does all of (per AGENTS.md § Data Lifecycle): `_raw/` TTL (delete promoted >7d, flag unpromoted >14d, archive previously-flagged), top-10 review-due queue, archiving of dead pages (60+ days overdue, zero inbound links) to `_archives/YYYY-MM/`, auto-promotion `draft → reviewed`, and full `index.md` rebuild from frontmatter. Parse the JSON output — its fields feed Steps 6–7. If the script errors, report the error and do NOT attempt the same operations manually via file crawling; fix or flag the script instead.
 
+Then refresh the project portfolio snapshot (deterministic, same programmatic-first rule — no interpretation here; the read-side block lives in `morning-brief`):
+
+```bash
+python3 "$OBSIDIAN_VAULT_PATH/_meta/scripts/portfolio.py" --apply
+```
+
+Regenerates `_meta/portfolio.json` + `projects/_portfolio.md` from the `engagement` frontmatter on initiative hubs. Idempotent; emits `{"disabled": true}` when `portfolio.enabled: false`.
+
 **Step 3: hot.md update**
 
 Read `hot.md`. If it's >48h old based on its `updated:` frontmatter, regenerate it: read the 10 most recently modified wiki pages and write a fresh ~500-word semantic snapshot of what the wiki covers. This keeps the next session's context warm without a full vault crawl. (This is the semantic step — it stays with you, not the script.)
