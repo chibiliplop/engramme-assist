@@ -167,7 +167,7 @@ def test_morning_brief_loads_initiative_index():
 
 
 def test_agents_emit_initiative_tags():
-    for ref in ("agent-a2-slack-synth.md", "agent-c-confluence.md"):
+    for ref in ("agent-a2-slack-synth.md", "agent-c-confluence.md", "agent-b-claude-sessions.md"):
         t = _read_ref("morning-brief", ref)
         assert "project_confidence" in t
         assert "new_project_candidate" in t
