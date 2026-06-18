@@ -245,7 +245,7 @@ def test_wiki_update_routes_to_entity_not_catchall():
 def test_morning_brief_passes_index_to_agent_b():
     t = _read("morning-brief")
     assert "Pass a compact form" in t          # preserved phrase (existing test)
-    assert "A2, B and C" in t                  # index now reaches the sessions agent
+    assert "to agents A2, B and C" in t        # Step 2 initiative-index passing reaches the sessions agent
 
 
 def test_architecture_notes_document_sessions_routing():
