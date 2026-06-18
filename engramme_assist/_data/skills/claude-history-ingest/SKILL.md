@@ -334,7 +334,7 @@ Don't create one wiki page per conversation. Instead:
 - Group extracted knowledge **by topic** across conversations
 - A single conversation about "debugging auth + setting up CI" → two separate topics
 - Three conversations across different days about "React performance" → one merged topic
-- The project directory name gives you a natural first-level grouping
+- The decoded project directory identifies a codebase — use it in Step 5.1 (codebase index lookup), not as a vault folder name
 
 ## Step 5: Distill into Wiki Pages
 
@@ -416,7 +416,9 @@ Also update the `projects`/`codebases` summary of the manifest — **never** wri
     "last_ingested": "TIMESTAMP",
     "conversations_ingested": 5,
     "conversations_total": 8,
-    "memory_files_ingested": 3
+    "memory_files_ingested": 3,
+    "desktop_sessions_ingested": 2,
+    "audit_logs_ingested": 2
   }
 }
 ```
