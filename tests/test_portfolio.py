@@ -34,6 +34,34 @@ def test_topic_last_seen_matches_names():
     assert portfolio.topic_last_seen({"nomatch"}, counter) is None
 
 
+def test_topic_last_seen_prefix_branch():
+    # name "stet" matches key "stet-eval" via startswith(name + "-"), not exact
+    counter = {"stet-eval": {"last_seen": "2026-06-20"},
+               "other-key": {"last_seen": "2026-06-01"}}
+    assert portfolio.topic_last_seen({"stet"}, counter) == date(2026, 6, 20)
+
+
+def test_topic_last_seen_substring_long_name():
+    # name len >= 4: "serp" in "refonte-serp-ux" → should match
+    counter = {"refonte-serp-ux": {"last_seen": "2026-06-10"},
+               "unrelated-key": {"last_seen": "2026-06-01"}}
+    assert portfolio.topic_last_seen({"serp"}, counter) == date(2026, 6, 10)
+
+
+def test_topic_last_seen_short_name_no_over_match():
+    # name len < 4: "do" must NOT match "user-do-x" via substring
+    counter = {"user-do-x": {"last_seen": "2026-06-17"}}
+    assert portfolio.topic_last_seen({"do"}, counter) is None
+
+
+def test_topic_last_seen_short_name_exact_still_works():
+    # short name "se" should still match exact key "se"
+    counter = {"se": {"last_seen": "2026-06-17"},
+               "relea-se": {"last_seen": "2026-06-18"}}
+    # exact match for "se" → date(2026, 6, 17); "relea-se" must NOT match
+    assert portfolio.topic_last_seen({"se"}, counter) == date(2026, 6, 17)
+
+
 def test_compute_last_movement_takes_max_ignoring_none():
     assert portfolio.compute_last_movement(date(2026, 6, 1), None, date(2026, 6, 10)) == date(2026, 6, 10)
     assert portfolio.compute_last_movement(None, None) is None

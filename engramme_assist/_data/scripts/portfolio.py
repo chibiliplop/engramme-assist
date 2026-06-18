@@ -66,7 +66,7 @@ def topic_last_seen(names, counter):
         if not isinstance(meta, dict):
             continue
         k = key.lower()
-        if any(k == n or k.startswith(n + "-") or n in k for n in names):
+        if any(k == n or k.startswith(n + "-") or (len(n) >= 4 and n in k) for n in names):
             d = parse_date(meta.get("last_seen"))
             if d and (best is None or d > best):
                 best = d
