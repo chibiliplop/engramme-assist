@@ -213,3 +213,16 @@ def test_weekly_retro_has_portfolio_triage_and_writeback():
 
 def test_claude_history_ingest_is_adopted_with_origin_marker():
     assert "adopted from obsidian-wiki==2026.6.5" in _read("claude-history-ingest")
+
+
+def test_claude_history_ingest_routes_to_entity_and_initiative():
+    t = _read("claude-history-ingest")
+    # new model present
+    assert "codebase_index.py" in t
+    assert "initiative_index.py" in t
+    assert "entities/<Repo>.md" in t
+    assert "PROJECT_CREATE" in t
+    assert "catch-all" in t
+    # old catch-all rule removed
+    assert "maps to a project directory" not in t
+    assert "projects/<name>/<name>.md" not in t

@@ -338,44 +338,59 @@ Don't create one wiki page per conversation. Instead:
 
 ## Step 5: Distill into Wiki Pages
 
-Each Claude project maps to a project directory in the vault. The project directory name from `~/.claude/projects/` encodes the original path — decode it to get a clean project name:
+`projects/` holds **initiatives** (bounded efforts), never codebases. A repo is a
+**codebase** → its durable facts live in `entities/<Repo>.md`. **Never** create a
+catch-all `projects/<repo>/` folder. This skill distills + stages; **all placement is
+delegated to `wiki-ingest`**, which owns the initiative-vs-codebase decision.
 
+### 5.1 Resolve the repo → codebase entity
+
+Run the two indexes once and keep their JSON:
+
+```bash
+OBSIDIAN_VAULT_PATH="$OBSIDIAN_VAULT_PATH" python3 "$OBSIDIAN_VAULT_PATH/_meta/scripts/codebase_index.py"
+OBSIDIAN_VAULT_PATH="$OBSIDIAN_VAULT_PATH" python3 "$OBSIDIAN_VAULT_PATH/_meta/scripts/initiative_index.py"
 ```
--Users/Documents/projects/my-Project   → myproject
--Users/Documents/projects/Another-app  → anotherapp
-```
 
-### Project-specific vs. global knowledge
+For each Claude project (decoded dir, e.g. `-Users-name-myrepo`), match it against the
+codebase index: **exact** match on `source_dirs` (or `git_path`/`aliases`) → that
+`entities/<Repo>.md` (confidence `high`). No match → a **new** codebase entity is the
+target (ADD). A decoded dir may match several entities (many-to-many) — use the session
+content to pick which one its durable facts belong to; ambiguous → confidence `low`.
 
-| What you found                     | Where it goes               | Example                                             |
-| ---------------------------------- | --------------------------- | --------------------------------------------------- |
-| Project architecture decisions     | `projects/<name>/concepts/` | `projects/my-project/concepts/main-architecture.md` |
-| Project-specific debugging         | `projects/<name>/skills/`   | `projects/my-project/skills/api-rate-limiting.md`   |
-| General concept the user learned   | `concepts/` (global)        | `concepts/react-server-components.md`               |
-| Recurring problem across projects  | `skills/` (global)          | `skills/debugging-hydration-errors.md`              |
-| A tool/service used                | `entities/` (global)        | `entities/vercel-functions.md`                      |
-| Patterns across many conversations | `synthesis/` (global)       | `synthesis/common-debugging-patterns.md`            |
+### 5.2 Resolve the codebase → initiatives
 
-For each project with content, create or update the project overview page at `projects/<name>/<name>.md` — **named after the project, not `_project.md`**. Obsidian's graph view uses the filename as the node label, so `_project.md` makes every project show up as `_project` in the graph. Naming it `<name>.md` gives each project a distinct, readable node name.
+Reverse-lookup the initiative index: initiatives whose `codebases:` contains the matched
+entity's `name`/alias. Refine with Jira keys and topic names seen in the session. Result:
+0..N initiatives. Disambiguate by Jira key > alias/title > codebase alone; no clear
+discriminant → `low` (no bypass, no creation).
 
-**Important:** Distill the _knowledge_, not the conversation. Don't write "In a conversation on March 15, the user asked about X." Write the knowledge itself, with the conversation as a source attribution.
+### 5.3 Route each piece of knowledge
 
-**Write a `summary:` frontmatter field** on every new/updated page — 1–2 sentences, ≤200 chars, answering "what is this page about?" for a reader who hasn't opened it. `wiki-query`'s cheap retrieval path reads this field to avoid opening page bodies.
+| What you found | Where it goes |
+| --- | --- |
+| Durable repo facts (git path, architecture, harness setup, conventions, build/test) | `entities/<Repo>.md` (UPDATE existing via 5.1, or ADD — `category: entities`, `tags: [codebase, …]`, `review_due` +90d, **no `team:`**) |
+| Session work tied to a matched initiative | `projects/<slug>/<category>/` — one staging per matched initiative |
+| Session noise (one-off debug, exploration, repo parts with no initiative) | the matched initiative if any, else **dropped** — **never** on the codebase entity |
+| A general concept/pattern/tool learned | global `concepts/` / `skills/` / `entities/` |
+| Cross-project / multi-initiative analysis | global `synthesis/` |
 
-**Add confidence and lifecycle fields** to every new page's frontmatter:
-```yaml
-base_confidence: 0.42
-lifecycle: draft
-lifecycle_changed: <ISO date today>
-```
-On update, leave `lifecycle` and `lifecycle_changed` unchanged — only a human editor transitions lifecycle state.
+Stage each routed piece as a `_raw/` note titled exactly as its target page, with a
+frontmatter hint — `codebase: <Repo>` for durable facts, or `project: <slug>` for
+initiative work — then **invoke `wiki-ingest`** to place it. Pass `PROJECT_CREATE`:
 
-**Mark provenance** per the convention in `llm-wiki` (Provenance Markers section):
+- `true` (default, manual invocation): if the session strongly signals a **new** initiative
+  (a Jira/epic key + a named effort) with no index match, ask **once** via `AskUserQuestion`
+  whether to create `projects/<slug>/` (slug = the owner's choice); otherwise attach to an
+  existing initiative or fall back to global.
+- `false` (ambient invocation, passed by morning-brief's Agent B): **never** create a new
+  initiative — attach to an existing one or fall back to the codebase entity / global, and
+  surface the candidate as `new_project_candidate` in the agent output.
 
-- **Memory files** are mostly extracted — the user wrote them by hand and they're already distilled. Treat memory-derived claims as extracted unless you're stitching together claims from multiple memory files.
-- **Conversation distillation** is mostly inferred. You're synthesizing a coherent claim from many turns of dialogue, often filling in implicit reasoning. Apply `^[inferred]` liberally to synthesized patterns, generalizations across sessions, and "what the user really meant" interpretations.
-- Use `^[ambiguous]` when the user changed their mind across sessions or when assistant and user contradicted each other and the resolution is unclear.
-- Write a `provenance:` frontmatter block on every new/updated page summarizing the rough mix.
+**Important:** distill the _knowledge_, not the conversation. Write a `summary:` field
+(≤200 chars) and `base_confidence`/`lifecycle: draft`/`lifecycle_changed` on every new page;
+apply provenance markers (`^[inferred]`/`^[ambiguous]`) and a `provenance:` block per
+`llm-wiki`. On update, leave `lifecycle`/`lifecycle_changed` unchanged.
 
 ## Step 6: Update Manifest, Journal, and Special Files
 
@@ -385,22 +400,23 @@ For each source file processed, add/update its entry with:
 
 - `ingested_at`, `size_bytes`, `modified_at`
 - `source_type`: one of `"claude_conversation"`, `"claude_memory"`, `"claude_audit_log"`, `"claude_desktop_session"`
-- `project`: the decoded project name
+- `codebase`: the resolved codebase entity title (or the new entity's title)
+- `initiatives`: list of initiative slugs the session fed (may be empty)
 - `pages_created` and `pages_updated` lists
 
-Also update the `projects` section of the manifest:
+Also update the `projects`/`codebases` summary of the manifest — **never** write
+`vault_path: projects/<repo>`. A repo points at its entity:
 
 ```json
 {
-  "project-name": {
+  "<repo-decoded-or-title>": {
     "source_path": "~/.claude/projects/-Users-...",
-    "vault_path": "projects/project-name",
+    "vault_path": "entities/<Repo>.md",
+    "initiatives": ["<slug>", "..."],
     "last_ingested": "TIMESTAMP",
     "conversations_ingested": 5,
     "conversations_total": 8,
-    "memory_files_ingested": 3,
-    "desktop_sessions_ingested": 2,
-    "audit_logs_ingested": 2
+    "memory_files_ingested": 3
   }
 }
 ```
