@@ -209,3 +209,7 @@ def test_weekly_retro_has_portfolio_triage_and_writeback():
     assert "portfolio.py" in txt
     assert "Portefeuille" in txt
     assert "Step 6b" in txt
+
+
+def test_claude_history_ingest_is_adopted_with_origin_marker():
+    assert "adopted from obsidian-wiki==2026.6.5" in _read("claude-history-ingest")
