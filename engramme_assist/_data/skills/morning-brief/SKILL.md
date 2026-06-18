@@ -103,7 +103,7 @@ After A1 returns:
 
 **Initiative index** — run the helper once and keep its JSON for Step 3 and Step 5:
 `OBSIDIAN_VAULT_PATH="$OBSIDIAN_VAULT_PATH" python3 "$OBSIDIAN_VAULT_PATH/_meta/scripts/initiative_index.py"`.
-Pass a compact form (`slug, title, aliases, team, jira_keys, status, codebases`) to agents A2 and C
+Pass a compact form (`slug, title, aliases, team, jira_keys, status, codebases`) to agents A2, B and C
 so they can tag each recurring topic with the initiative it matches.
 
 **Portfolio snapshot** — alongside the initiative index, run
@@ -164,7 +164,7 @@ Aggregate `recurring_topics` from A2, B and C.
    - explicit decision logged in Slack
    - otherwise mention only in the brief, keeping the counter
 
-**Initiative routing (per recurring topic, from A2/C tags):**
+**Initiative routing (per recurring topic, from A2/B/C tags):**
 - `project` non-null + `project_confidence: high` + initiative `status: active` →
   **bypass the recurrence gate**: stage `_raw/morning-brief/<date>-<slug>.md` titled exactly
   as the target page (the index entry's hub title, or an existing `projects/<slug>/references/`
@@ -185,7 +185,7 @@ counter/gate rule. In a **non-interactive** run, create nothing — list the can
 3. If D returned `new_people`, route staged `_raw/morning-brief/people/*.md` stubs through `wiki-ingest` unconditionally; a first encountered named attendee gets a person page immediately.
 4. Spawn two parallel one-pass subagents on `<synth_model>`:
    - **5a people** when `new_people` is non-empty: invoke `wiki-ingest` on `_raw/morning-brief/people/*.md`; verify final pages are named `entities/Prénom Nom.md` per `references/person-entity-convention.md`.
-   - **5b topics**: stage `_raw/morning-brief/YYYY-MM-DD-<topic-slug>.md`, invoke `wiki-ingest`, invoke `cross-linker` once, and persist `topics-counter` deltas. Claude-session topics are already handled by B.
+   - **5b topics**: stage `_raw/morning-brief/YYYY-MM-DD-<topic-slug>.md`, invoke `wiki-ingest`, invoke `cross-linker` once, and persist `topics-counter` deltas. B already placed its Claude-session knowledge (entity + initiatives) via `claude-history-ingest`; only B's `new_project_candidate` entries flow into the batched new-initiative prompt above.
 5. Both Step-5 agents pass `QMD=skip` to `wiki-ingest` and `cross-linker`. QMD refresh happens exactly once in Agent E.
 6. Append one line per new/updated page to `## 🌱 Recurring topics`, including `🆕 fiche personne` for new people.
 

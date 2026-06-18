@@ -32,3 +32,11 @@ runs do not need to read this file.
 | Wiki maintenance | `daily-update` (Agent E final pass) |
 | Ambient topic -> initiative page | `morning-brief` Step 5 (high-confidence active match, gate bypass) via `wiki-ingest` `PROJECT_CREATE=false`; index from `initiative_index.py` |
 | New-initiative creation | human-confirmed in the brief (batched `AskUserQuestion`); never silent from ambient sources |
+
+## Sessions flow (Agent B)
+
+Agent B's wiki writes go through `claude-history-ingest`, which resolves each repo via
+`codebase_index.py` → `entities/<Repo>.md` (durable facts) and routes session work to the
+matched initiatives via `wiki-ingest` (`PROJECT_CREATE=false` in this ambient path) — never
+a catch-all `projects/<repo>/`. B emits `project`/`project_confidence`/`new_project_candidate`
+like A2/C; only `new_project_candidate` reaches the batched new-initiative prompt in Step 5.

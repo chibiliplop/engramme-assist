@@ -240,3 +240,14 @@ def test_wiki_update_routes_to_entity_not_catchall():
     # the repo-name -> folder seed is gone
     assert "Derive a clean project name from the directory name." not in t
     assert "Goes under `$VAULT/projects/<project-name>/`" not in t
+
+
+def test_morning_brief_passes_index_to_agent_b():
+    t = _read("morning-brief")
+    assert "Pass a compact form" in t          # preserved phrase (existing test)
+    assert "A2, B and C" in t                  # index now reaches the sessions agent
+
+
+def test_architecture_notes_document_sessions_routing():
+    t = _read_ref("morning-brief", "architecture-notes.md")
+    assert "codebase_index.py" in t
