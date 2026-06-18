@@ -230,3 +230,13 @@ def test_claude_history_ingest_routes_to_entity_and_initiative():
 
 def test_wiki_update_is_adopted_with_origin_marker():
     assert "adopted from obsidian-wiki==2026.6.5" in _read("wiki-update")
+
+
+def test_wiki_update_routes_to_entity_not_catchall():
+    t = _read("wiki-update")
+    assert "codebase_index.py" in t
+    assert "entities/<Repo>.md" in t
+    assert "catch-all" in t
+    # the repo-name -> folder seed is gone
+    assert "Derive a clean project name from the directory name." not in t
+    assert "Goes under `$VAULT/projects/<project-name>/`" not in t

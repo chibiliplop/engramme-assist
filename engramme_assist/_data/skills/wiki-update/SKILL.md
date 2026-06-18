@@ -31,7 +31,10 @@ Figure out what this project is by scanning the current working directory:
 - Git log (focus on commit messages that signal decisions, not "fix typo" stuff)
 - Claude memory files if they exist (`.claude/` in the project)
 
-Derive a clean project name from the directory name.
+Identify the repo. Run `codebase_index.py` (vault `_meta/scripts/`) and match the repo's
+git path / directory against `git_path`/`source_dirs`/`aliases` to find its
+`entities/<Repo>.md` (or note it's a new codebase). This is a **codebase**, not a project
+folder — never derive a `projects/<name>/` from the directory name.
 
 ## Step 2: Compute the Delta
 
@@ -72,22 +75,28 @@ The heuristic: **if reading the codebase answers the question, don't wiki it. If
 
 ## Step 4: Distill into Wiki Pages
 
-### Project-specific knowledge
+### Where knowledge goes
 
-Goes under `$VAULT/projects/<project-name>/`:
+`projects/` holds **initiatives** (bounded efforts), never codebases. **Never** create a
+catch-all `projects/<project-name>/` folder. Load both indexes:
 
-```
-projects/<project-name>/
-├── <project-name>.md          ← project overview (named after the project, NOT _project.md)
-├── concepts/                  ← project-specific ideas, architectures
-├── skills/                    ← project-specific how-tos, patterns
-└── references/                ← project-specific source summaries
+```bash
+OBSIDIAN_VAULT_PATH="$OBSIDIAN_VAULT_PATH" python3 "$OBSIDIAN_VAULT_PATH/_meta/scripts/codebase_index.py"
+OBSIDIAN_VAULT_PATH="$OBSIDIAN_VAULT_PATH" python3 "$OBSIDIAN_VAULT_PATH/_meta/scripts/initiative_index.py"
 ```
 
-The overview page (`<project-name>.md`) should have:
-- What the project is (one paragraph)
-- Key concepts and how they connect
-- Links to project-specific and global wiki pages
+- **Durable repo facts** (architecture, dependencies-wiring, key abstractions, build/test) →
+  `entities/<Repo>.md` (`category: entities`, `tags: [codebase, …]`, `review_due` +90d, **no
+  `team:`**) — UPDATE the entity matched via `codebase_index`, or ADD it if new.
+- **Work tied to an initiative** (reverse-lookup `initiative_index.codebases` for the matched
+  entity, refined by Jira keys / topics in the git log) → `projects/<slug>/<category>/`.
+- **General concept / pattern / tool / cross-project analysis** → global `concepts/` /
+  `skills/` / `entities/` / `synthesis/`.
+
+Stage each piece as a `_raw/` note (hint `codebase: <Repo>` or `project: <slug>`) and
+**invoke `wiki-ingest`** to place it — `wiki-ingest` owns the initiative-vs-codebase
+decision and the `PROJECT_CREATE` gate (default `true` for this manual flow; a strong
+new-initiative signal with no match prompts once before creating).
 
 ### Global knowledge
 
@@ -167,12 +176,14 @@ Add or update this project's entry:
 
 ```json
 {
-  "projects": {
-    "<project-name>": {
+  "codebases": {
+    "<Repo>": {
       "source_cwd": "/absolute/path/to/project",
+      "vault_path": "entities/<Repo>.md",
+      "initiatives": ["<slug>", "..."],
       "last_synced": "TIMESTAMP",
       "last_commit_synced": "abc123f",
-      "pages_in_vault": ["projects/<project-name>/<project-name>.md", "..."]
+      "pages_in_vault": ["entities/<Repo>.md", "projects/<slug>/..."]
     }
   }
 }
@@ -218,13 +229,13 @@ ${QMD_CLI:-qmd} embed
 Verify at least one created or materially updated page is visible in the wiki collection:
 
 ```bash
-${QMD_CLI:-qmd} get "qmd://$QMD_WIKI_COLLECTION/projects/<project-name>/<page>.md" -l 5
+${QMD_CLI:-qmd} get "qmd://$QMD_WIKI_COLLECTION/entities/<Repo>.md" -l 5
 ```
 
 If the exact `qmd://` path is uncertain, use:
 
 ```bash
-${QMD_CLI:-qmd} ls "$QMD_WIKI_COLLECTION" | grep "<project-name>"
+${QMD_CLI:-qmd} ls "$QMD_WIKI_COLLECTION" | grep "<Repo>"
 ```
 
 Record QMD refresh in the final report as one of:
@@ -238,4 +249,4 @@ Record QMD refresh in the final report as one of:
 - **Be aggressive about merging.** If the project uses React Server Components, don't create a new page if `concepts/react-server-components.md` already exists. Update the existing one and add this project as a source.
 - **Consult the tag taxonomy.** Read `$VAULT/_meta/taxonomy.md` if it exists, and use canonical tags.
 - **Don't copy code.** Distill the *knowledge*, not the implementation. "This project uses a debounced search pattern with 300ms delay" is useful. Pasting the actual debounce function is not.
-- **Project overview is the anchor.** The `<project-name>.md` file is what you'd read to get oriented. Make it good.
+- **The codebase entity is the anchor.** `entities/<Repo>.md` is what you'd read to get oriented on the repo's durable facts; initiative work lives in `projects/<slug>/`. Never a `projects/<repo>/` folder.
