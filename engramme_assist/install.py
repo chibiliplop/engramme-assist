@@ -19,8 +19,9 @@ from pathlib import Path
 from engramme_assist import __version__
 
 
-# The 6 skills this overlay vendors. `daily-update` overrides the upstream skill
-# of the same name; the other five are new additions.
+# The 9 skills this overlay vendors. `daily-update`, `wiki-ingest`,
+# `claude-history-ingest` and `wiki-update` override the upstream skills of the same
+# name (adopted copies — see each SKILL.md's origin marker); the rest are new additions.
 OVERLAY_SKILLS = (
     "daily-update",
     "jot",
@@ -28,6 +29,9 @@ OVERLAY_SKILLS = (
     "weekly-retro",
     "wiki-init",
     "wiki-profile",
+    "wiki-ingest",
+    "claude-history-ingest",
+    "wiki-update",
 )
 
 # Agent skill directories. The overlay installs its skills into the SAME set

@@ -8,9 +8,10 @@ REPO_ROOT = Path(install.__file__).resolve().parent.parent
 DATA_ROOT = Path(install.__file__).resolve().parent / "_data"
 
 
-def test_overlay_skills_list_is_the_six_vendored():
+def test_overlay_skills_list_is_the_vendored_set():
     assert set(install.OVERLAY_SKILLS) == {
         "daily-update", "jot", "morning-brief", "weekly-retro", "wiki-init", "wiki-profile",
+        "wiki-ingest", "claude-history-ingest", "wiki-update",
     }
 
 
