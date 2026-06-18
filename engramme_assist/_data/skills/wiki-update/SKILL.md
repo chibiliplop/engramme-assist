@@ -119,7 +119,7 @@ title: >-
     Page Title
 category: concepts
 tags: [tag1, tag2]
-sources: [projects/<project-name>]
+sources: [entities/<Repo>]
 summary: >-
     One or two sentences (≤200 chars) describing what this page covers.
 provenance:
@@ -166,7 +166,7 @@ After creating/updating pages:
 
 - Add `[[wikilinks]]` from new pages to existing related pages
 - Add `[[wikilinks]]` from existing pages back to the new ones where relevant
-- Link the project overview to all project-specific pages and relevant global pages
+- Link the codebase entity (`entities/<Repo>.md`) and any initiative pages to relevant global pages
 
 ## Step 6: Update Tracking
 
@@ -197,7 +197,7 @@ Add entries for any new pages created.
 
 Append:
 ```
-- [TIMESTAMP] WIKI_UPDATE project=<project-name> pages_updated=X pages_created=Y source_cwd=/path/to/project
+- [TIMESTAMP] WIKI_UPDATE codebase=<Repo> initiatives=<slugs> pages_updated=X pages_created=Y source_cwd=/path/to/project
 ```
 
 ### Update `hot.md`
