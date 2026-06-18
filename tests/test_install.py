@@ -257,7 +257,7 @@ def test_initiative_and_portfolio_scripts_are_placed(tmp_path):
     vault = tmp_path / "vault"
     (vault / "_meta" / "scripts").mkdir(parents=True)
     install.place_vault_files(install.data_root(), vault)
-    for script in ("gardener.py", "insights.py", "initiative_index.py", "portfolio.py"):
+    for script in ("gardener.py", "insights.py", "initiative_index.py", "portfolio.py", "codebase_index.py"):
         assert (vault / "_meta" / "scripts" / script).is_file(), script
 
 

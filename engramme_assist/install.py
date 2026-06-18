@@ -274,7 +274,7 @@ def place_vault_files(root: Path, vault_path: Path) -> None:
     # with that skill's documented schema), reused here so there is no second divergent copy.
     profile_example = root / "skills" / "wiki-profile" / "profile.example.yml"
     place_if_absent(profile_example, vault_path / "_meta" / "profile.example.yml")
-    for script in ("gardener.py", "insights.py", "initiative_index.py", "portfolio.py"):
+    for script in ("gardener.py", "insights.py", "initiative_index.py", "portfolio.py", "codebase_index.py"):
         place_if_absent(root / "scripts" / script, vault_path / "_meta" / "scripts" / script)
     print("✅  profile.example.yml + vault scripts placed (if absent)")
 
