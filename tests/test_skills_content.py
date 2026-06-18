@@ -226,3 +226,7 @@ def test_claude_history_ingest_routes_to_entity_and_initiative():
     # old catch-all rule removed
     assert "maps to a project directory" not in t
     assert "projects/<name>/<name>.md" not in t
+
+
+def test_wiki_update_is_adopted_with_origin_marker():
+    assert "adopted from obsidian-wiki==2026.6.5" in _read("wiki-update")
