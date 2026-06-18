@@ -238,6 +238,13 @@ You'll apply markers in Step 5. Don't conflate these — the wiki's value depend
 (durable repo/library) belongs in `entities/<Repo>.md`. **Never** create a
 catch-all `projects/<repo>/` folder.
 
+**Honor a staged hint first.** If the source is a `_raw/` note carrying a
+`codebase: <Repo>` or `project: <slug>` frontmatter hint (set by
+`claude-history-ingest` / `wiki-update`, which already resolved the target via the
+indexes), treat that as the resolved target — UPDATE `entities/<Repo>.md` or
+`projects/<slug>/` directly — and skip the matching below. Only when no hint is
+present, fall back to the content matching:
+
 1. **Load the initiative index** — run the helper and read its JSON:
    `OBSIDIAN_VAULT_PATH="$OBSIDIAN_VAULT_PATH" python3 "$OBSIDIAN_VAULT_PATH/_meta/scripts/initiative_index.py"`
    (each entry: `slug, path, title, aliases, team, codebases, jira_keys, status`).

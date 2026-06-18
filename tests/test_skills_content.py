@@ -251,3 +251,9 @@ def test_morning_brief_passes_index_to_agent_b():
 def test_architecture_notes_document_sessions_routing():
     t = _read_ref("morning-brief", "architecture-notes.md")
     assert "codebase_index.py" in t
+
+
+def test_wiki_ingest_honors_staged_hint():
+    t = _read("wiki-ingest")
+    assert "Honor a staged hint" in t
+    assert "codebase: <Repo>" in t and "project: <slug>" in t

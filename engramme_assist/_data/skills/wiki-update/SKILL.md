@@ -90,8 +90,7 @@ OBSIDIAN_VAULT_PATH="$OBSIDIAN_VAULT_PATH" python3 "$OBSIDIAN_VAULT_PATH/_meta/s
   `team:`**) — UPDATE the entity matched via `codebase_index`, or ADD it if new.
 - **Work tied to an initiative** (reverse-lookup `initiative_index.codebases` for the matched
   entity, refined by Jira keys / topics in the git log) → `projects/<slug>/<category>/`.
-- **General concept / pattern / tool / cross-project analysis** → global `concepts/` /
-  `skills/` / `entities/` / `synthesis/`.
+- **General / cross-cutting knowledge** → global namespaces (see the **Global knowledge** table below).
 
 Stage each piece as a `_raw/` note (hint `codebase: <Repo>` or `project: <slug>`) and
 **invoke `wiki-ingest`** to place it — `wiki-ingest` owns the initiative-vs-codebase
