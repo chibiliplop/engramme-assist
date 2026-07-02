@@ -19,9 +19,11 @@ from pathlib import Path
 from engramme_assist import __version__
 
 
-# The 9 skills this overlay vendors. `daily-update`, `wiki-ingest`,
-# `claude-history-ingest` and `wiki-update` override the upstream skills of the same
-# name (adopted copies — see each SKILL.md's origin marker); the rest are new additions.
+# The skills this overlay vendors. The adopted copies (see each SKILL.md's
+# origin marker) override the upstream obsidian-wiki skills of the same name:
+# daily-update, wiki-ingest, claude-history-ingest, wiki-update, wiki-verify,
+# wiki-lint, wiki-query, cross-linker, wiki-dedup, wiki-history-ingest.
+# The rest are new additions.
 OVERLAY_SKILLS = (
     "daily-update",
     "jot",
@@ -32,6 +34,16 @@ OVERLAY_SKILLS = (
     "wiki-ingest",
     "claude-history-ingest",
     "wiki-update",
+    "meeting-prep",
+    "meeting-notes",
+    "meeting-debrief",
+    "sparring",
+    "wiki-verify",
+    "wiki-lint",
+    "wiki-query",
+    "cross-linker",
+    "wiki-dedup",
+    "wiki-history-ingest",
 )
 
 # Agent skill directories. The overlay installs its skills into the SAME set

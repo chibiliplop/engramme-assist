@@ -14,36 +14,118 @@ JIRA_RE = re.compile(r"\b([A-Z]{2,}-\d+)\b")
 
 
 def _frontmatter(text):
-    m = re.match(r"^---\n(.*?)\n---", text, re.DOTALL)
+    m = re.match(r"^---\r?\n(.*?)\r?\n---", text, re.DOTALL)
     return (m.group(1), text[m.end():]) if m else (None, text)
 
 
+def _strip_yaml_comment(value):
+    quote = None
+    escape = False
+    for i, ch in enumerate(value):
+        if escape:
+            escape = False
+            continue
+        if quote:
+            if quote == '"' and ch == "\\":
+                escape = True
+            elif ch == quote:
+                quote = None
+            continue
+        if ch in ("'", '"'):
+            quote = ch
+        elif ch == "#" and (i == 0 or value[i - 1].isspace()):
+            return value[:i]
+    return value
+
+
+def _strip_yaml_value(value):
+    value = _strip_yaml_comment(value).strip()
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in ("'", '"'):
+        value = value[1:-1]
+    return value.strip()
+
+
+def _inline_list_items(value):
+    value = _strip_yaml_comment(value).strip()
+    if not (value.startswith("[") and value.endswith("]")):
+        return None
+    inner = value[1:-1]
+    items, buf = [], []
+    quote = None
+    escape = False
+    for ch in inner:
+        if escape:
+            buf.append(ch)
+            escape = False
+            continue
+        if quote:
+            if quote == '"' and ch == "\\":
+                escape = True
+                buf.append(ch)
+            elif ch == quote:
+                quote = None
+                buf.append(ch)
+            else:
+                buf.append(ch)
+            continue
+        if ch in ("'", '"'):
+            quote = ch
+            buf.append(ch)
+        elif ch == ",":
+            item = _strip_yaml_value("".join(buf))
+            if item:
+                items.append(item)
+            buf = []
+        else:
+            buf.append(ch)
+    item = _strip_yaml_value("".join(buf))
+    if item:
+        items.append(item)
+    return items
+
+
+def _key_value_lines(fm_text, key):
+    lines = fm_text.splitlines()
+    for i, line in enumerate(lines):
+        m = re.match(rf"^{re.escape(key)}:\s*(.*?)\s*$", line)
+        if m:
+            yield i, m.group(1), lines
+
+
 def _scalar(fm_text, key):
-    m = re.search(rf"^{key}:\s*['\"]?(.+?)['\"]?\s*(?:\s#.*)?$", fm_text, re.M)
-    if not m:
-        return ""
-    val = m.group(1).strip()
-    # strip a trailing whitespace-preceded YAML comment (e.g. `value  # note`)
-    val = re.sub(r"\s+#.*$", "", val)
-    return val
+    for i, raw_val, lines in _key_value_lines(fm_text, key):
+        val = _strip_yaml_value(raw_val)
+        if val in (">", ">-", ">+", "|", "|-", "|+"):
+            block = []
+            for sub in lines[i + 1:]:
+                if sub.strip() and not sub.startswith((" ", "\t")):
+                    break
+                block.append(sub.strip() if sub.strip() else "")
+            return ("\n" if val.startswith("|") else " ").join(x for x in block if x).strip()
+        return val
+    return ""
 
 
 def _list_field(fm_text, key):
     """Values of a frontmatter field in inline [..], block (- x), or scalar form."""
-    m = re.search(rf"^{key}:\s*\[(.+)\]\s*(?:#.*)?$", fm_text, re.M)
-    if m:
-        return [v.strip().strip("'\"") for v in m.group(1).split(",") if v.strip()]
-    if re.search(rf"^{key}:\s*$", fm_text, re.M):
-        vals, in_block = [], False
-        for line in fm_text.split("\n"):
-            if re.match(rf"^{key}:\s*$", line):
-                in_block = True
-            elif in_block:
-                mm = re.match(r"^\s+-\s*(.+)$", line)
-                if mm:
-                    vals.append(mm.group(1).strip().strip("'\""))
-                else:
-                    in_block = False
+    for i, raw_val, lines in _key_value_lines(fm_text, key):
+        inline = _inline_list_items(raw_val)
+        if inline is not None:
+            return inline
+        if _strip_yaml_value(raw_val):
+            val = _scalar(fm_text, key)
+            return [val] if val else []
+        vals = []
+        for line in lines[i + 1:]:
+            if not line.strip():
+                continue
+            if not line.startswith((" ", "\t")):
+                break
+            mm = re.match(r"^\s+-\s*(.*)$", line)
+            if mm:
+                val = _strip_yaml_value(mm.group(1))
+                if val:
+                    vals.append(val)
         return vals
     s = _scalar(fm_text, key)
     return [s] if s else []
@@ -52,7 +134,10 @@ def _list_field(fm_text, key):
 def _strip_wikilink(s):
     s = s.strip().strip("'\"")
     m = re.match(r"^\[\[(.+?)\]\]$", s)
-    return m.group(1) if m else s
+    if not m:
+        return s
+    target = m.group(1).split("|", 1)[0].split("#", 1)[0].strip()
+    return target
 
 
 def _find_hub(pdir):
@@ -66,7 +151,7 @@ def _find_hub(pdir):
         except OSError:
             continue
         fm_text, body = _frontmatter(text)
-        if fm_text and re.search(r"^category:\s*projects\s*$", fm_text, re.M):
+        if fm_text and _scalar(fm_text, "category") == "projects":
             return fpath, fm_text, body
     return None, None, None
 

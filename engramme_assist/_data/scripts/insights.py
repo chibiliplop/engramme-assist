@@ -6,6 +6,10 @@ Usage:
     python3 insights.py --apply    # réécrit _insights.md (sections stats), en
                                    # préservant les sections rédigées par le LLM
                                    # (## Observations, ## Questions Worth Asking)
+    python3 insights.py --json     # machine-readable : un seul objet JSON
+                                   # (orphans, backlinks, broken_links, link_counts,
+                                   # cooccurrence_candidates) pour wiki-lint /
+                                   # cross-linker / wiki-synthesize
 
 La partie mécanique (hubs, orphans, dead-ends, liens cassés, distribution) est
 calculée ici ; l'interprétation (Observations, Questions) reste au LLM — le skill
@@ -17,6 +21,7 @@ import re
 import sys
 from collections import defaultdict
 from datetime import date
+from itertools import combinations
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from gardener import VAULT, vault_pages, page_title  # noqa: E402
@@ -53,7 +58,89 @@ def build_graph():
     return pages, titles, out_links, in_links, broken, cat_of
 
 
+def build_path_graph(pages):
+    """Graphe de liens indexé par chemin relatif (pour la sortie --json).
+
+    Renvoie (out_links, in_links, broken, tags_by_path) où out_links/in_links sont
+    des dict path → set(path) et broken une liste de {source, target}."""
+    name_to_path = {}
+    for rel, fm, _ in pages:
+        t = page_title(rel, fm)
+        name_to_path[t.lower()] = rel
+        name_to_path[os.path.splitext(os.path.basename(rel))[0].lower()] = rel
+        for a in fm.get("aliases", []):
+            name_to_path[a.lower()] = rel
+    out_links = defaultdict(set)
+    in_links = defaultdict(set)
+    broken = []
+    tags_by_path = {}
+    for rel, fm, body in pages:
+        tags_by_path[rel] = {t for t in fm.get("tags", []) if not t.startswith("visibility/")}
+        for raw in set(LINK_RE.findall(body)):
+            target = raw.strip().split("/")[-1]
+            resolved = name_to_path.get(target.lower())
+            if resolved is None:
+                broken.append({"source": rel, "target": raw.strip()})
+            elif resolved != rel:
+                out_links[rel].add(resolved)
+                in_links[resolved].add(rel)
+    return out_links, in_links, broken, tags_by_path
+
+
+def cooccurrence_candidates(out_links, tags_by_path, limit=30):
+    """Paires de pages souvent co-citées / partageant des tags mais non reliées.
+
+    Signal = 2 × (co-citations : pages tierces qui lient les deux) + (tags partagés).
+    Exclut les paires déjà reliées dans un sens ou l'autre. Top `limit` par poids."""
+    comention = defaultdict(int)
+    for targets in out_links.values():
+        for a, b in combinations(sorted(targets), 2):
+            comention[(a, b)] += 1
+    tag_index = defaultdict(list)
+    for rel, tags in tags_by_path.items():
+        for tag in tags:
+            tag_index[tag].append(rel)
+    tag_overlap = defaultdict(int)
+    for paths in tag_index.values():
+        if not (2 <= len(paths) <= 25):  # ignore singletons et tags trop génériques
+            continue
+        for a, b in combinations(sorted(paths), 2):
+            tag_overlap[(a, b)] += 1
+
+    def linked(a, b):
+        return b in out_links.get(a, ()) or a in out_links.get(b, ())
+
+    scored = {}
+    for pair in set(comention) | set(tag_overlap):
+        a, b = pair
+        if linked(a, b):
+            continue
+        weight = 2 * comention.get(pair, 0) + tag_overlap.get(pair, 0)
+        if weight > 0:
+            scored[pair] = weight
+    ranked = sorted(scored.items(), key=lambda kv: (-kv[1], kv[0]))[:limit]
+    return [{"a": a, "b": b, "weight": w} for (a, b), w in ranked]
+
+
+def json_report():
+    pages = vault_pages()
+    out_links, in_links, broken, tags_by_path = build_path_graph(pages)
+    all_paths = [rel for rel, _, _ in pages]
+    link_counts = {rel: {"in": len(in_links.get(rel, ())), "out": len(out_links.get(rel, ()))}
+                   for rel in all_paths}
+    return {
+        "orphans": sorted(rel for rel in all_paths if link_counts[rel]["in"] == 0),
+        "backlinks": {rel: link_counts[rel]["in"] for rel in all_paths},
+        "broken_links": broken,
+        "link_counts": link_counts,
+        "cooccurrence_candidates": cooccurrence_candidates(out_links, tags_by_path),
+    }
+
+
 def main():
+    if "--json" in sys.argv:
+        print(json.dumps(json_report(), indent=1, ensure_ascii=False))
+        return
     apply = "--apply" in sys.argv
     pages, titles, out_links, in_links, broken, cat_of = build_graph()
     total_links = sum(len(v) for v in out_links.values())

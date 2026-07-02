@@ -15,7 +15,7 @@ import json
 import os
 import re
 import sys
-from datetime import date
+from datetime import date, timedelta
 
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, THIS_DIR)
@@ -84,8 +84,16 @@ def is_stale(engagement, days, thresholds):
 
 
 def _portfolio_block(profile_text):
-    m = re.search(r"^portfolio:\s*\n((?:[ \t]+.*\n?)*)", profile_text or "", re.M)
-    return m.group(1) if m else ""
+    profile_text = profile_text or ""
+    m = re.search(r"^portfolio:\s*\n((?:[ \t]+.*\n?)*)", profile_text, re.M)
+    if m:
+        return m.group(1)
+    # Backward-compatible with early example profiles that nested portfolio under brief.
+    m = re.search(r"^brief:\s*\n((?:[ \t]+.*\n?)*)", profile_text, re.M)
+    if not m:
+        return ""
+    nested = re.search(r"^[ \t]+portfolio:\s*\n((?:[ \t]+.*\n?)*)", m.group(1), re.M)
+    return nested.group(1) if nested else ""
 
 
 def portfolio_enabled(profile_text):
@@ -153,9 +161,13 @@ def collect(vault, today, counter, thresholds):
 
 
 def render_md(snapshot):
+    generated = parse_date(snapshot["generated"])
+    review_due = (generated + timedelta(days=14)).isoformat() if generated else snapshot["generated"]
     lines = [
         "---", "title: Portefeuille", "category: projects",
-        "tags: [state, portfolio]", f"updated: {snapshot['generated']}", "---", "",
+        "tags: [state, portfolio]", "sources: []",
+        f"created: {snapshot['generated']}", f"updated: {snapshot['generated']}",
+        f"review_due: {review_due}", "---", "",
         "# 📁 Portefeuille de projets", "",
         f"*Vue dérivée — régénérée par `_meta/scripts/portfolio.py`. "
         f"Ne pas éditer à la main. ({snapshot['generated']})*", "",
@@ -212,6 +224,8 @@ def main(argv=None):
                 pass
 
     if apply:
+        os.makedirs(os.path.join(vault, "_meta"), exist_ok=True)
+        os.makedirs(os.path.join(vault, "projects"), exist_ok=True)
         with open(os.path.join(vault, "_meta", "portfolio.json"), "w", encoding="utf-8") as fh:
             json.dump(snapshot, fh, ensure_ascii=False, indent=1)
         with open(os.path.join(vault, "projects", "_portfolio.md"), "w", encoding="utf-8") as fh:

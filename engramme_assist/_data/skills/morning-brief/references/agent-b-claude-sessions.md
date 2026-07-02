@@ -41,13 +41,11 @@ For each, output:
 - End state — committed | uncommitted | branch pushed | PR opened | blocked
 - Open TODOs / blockers from last assistant messages
 
-Identify RECURRING TOPICS — same area touched ≥3 sessions cumulatively. Read
-`state/topics-counter.json` (in the vault) for prior cumulative hits and factor them in.
-For each recurring topic set `project` to the matched initiative slug (else `null`) and
-`project_confidence` to `high` (Jira key, alias/title, or codebase match) or `low`. Set
-`new_project_candidate` to `{"proposed_slug": "...", "proposed_title": "...",
-"signal": "..."}` **only** on a strong signal (a Jira/epic key plus a named initiative) with
-no index match; otherwise `null`.
+Read `state/topics-counter.json` (in the vault) for prior cumulative hits, then identify recurring
+topics per the shared rule below (here an "item" is a Claude session and the theme is the code area
+touched).
+
+<recurring_topics_rules>
 
 Output JSON:
 {

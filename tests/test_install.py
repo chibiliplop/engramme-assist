@@ -12,6 +12,9 @@ def test_overlay_skills_list_is_the_vendored_set():
     assert set(install.OVERLAY_SKILLS) == {
         "daily-update", "jot", "morning-brief", "weekly-retro", "wiki-init", "wiki-profile",
         "wiki-ingest", "claude-history-ingest", "wiki-update",
+        "meeting-prep", "meeting-notes", "meeting-debrief", "sparring",
+        "wiki-verify", "wiki-lint", "wiki-query", "cross-linker", "wiki-dedup",
+        "wiki-history-ingest",
     }
 
 

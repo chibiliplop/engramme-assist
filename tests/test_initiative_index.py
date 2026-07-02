@@ -136,3 +136,62 @@ def test_scalar_hash_mid_value_preserved(tmp_path):
     )
     e = _by_slug(_load().build_index(str(tmp_path)), "hash-mid")
     assert e["title"] == "Tag#123"
+
+
+def test_folded_scalar_title_is_unwrapped(tmp_path):
+    """Folded YAML scalars are used by wiki-update and must not become literal '>-'."""
+    _hub(
+        tmp_path, "folded-title",
+        "title: >-\n"
+        "  Folded Initiative Title\n"
+        "category: projects\n"
+        "status: active",
+    )
+    e = _by_slug(_load().build_index(str(tmp_path)), "folded-title")
+    assert e["title"] == "Folded Initiative Title"
+
+
+def test_quoted_category_and_comment_still_identifies_hub(tmp_path):
+    _hub(
+        tmp_path, "quoted-category",
+        'title: Quoted Category\ncategory: "projects"  # valid yaml comment\nstatus: active',
+    )
+    assert _by_slug(_load().build_index(str(tmp_path)), "quoted-category")["title"] == "Quoted Category"
+
+
+def test_inline_list_keeps_commas_and_hashes_inside_quotes(tmp_path):
+    _hub(
+        tmp_path, "rich-list",
+        'title: Rich List\ncategory: projects\n'
+        'aliases: ["Foo, Bar", "Hash # kept", "Simple"]  # outer comment\n'
+        'jira: ["SE-18453", "JFP-400"]\n'
+        "status: active",
+    )
+    e = _by_slug(_load().build_index(str(tmp_path)), "rich-list")
+    assert e["aliases"] == ["Foo, Bar", "Hash # kept", "Simple"]
+    assert e["jira_keys"] == ["SE-18453", "JFP-400"]
+
+
+def test_block_list_strips_item_comments_but_keeps_quoted_hash(tmp_path):
+    _hub(
+        tmp_path, "block-comments",
+        "title: Block Comments\ncategory: projects\n"
+        "aliases:\n"
+        '  - "Hash # kept"\n'
+        "  - Plain value  # dropped\n"
+        "status: active",
+    )
+    e = _by_slug(_load().build_index(str(tmp_path)), "block-comments")
+    assert e["aliases"] == ["Hash # kept", "Plain value"]
+
+
+def test_wikilink_alias_and_section_are_stripped(tmp_path):
+    _hub(
+        tmp_path, "wikilink-alias",
+        "title: Wikilink Alias\ncategory: projects\n"
+        'team: "[[Team Page#Section|Visible team]]"\n'
+        'codebases: ["[[Repo Page|Visible repo]]"]\n',
+    )
+    e = _by_slug(_load().build_index(str(tmp_path)), "wikilink-alias")
+    assert e["team"] == ["Team Page"]
+    assert e["codebases"] == ["Repo Page"]

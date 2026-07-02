@@ -87,6 +87,12 @@ def test_portfolio_enabled():
     assert portfolio.portfolio_enabled("portfolio:\n  enabled: true\n") is True
 
 
+def test_legacy_nested_portfolio_block_still_reads():
+    txt = "brief:\n  thresholds: { must_read: 7, watch: 5 }\n  portfolio:\n    enabled: false\n    stale_days:\n      porteur: 3\n"
+    assert portfolio.portfolio_enabled(txt) is False
+    assert portfolio.load_thresholds(txt)["porteur"] == 3
+
+
 def test_build_snapshot_flags_stale_only_active():
     today, th = date(2026, 6, 17), portfolio.DEFAULT_STALE
     projects = [
@@ -128,3 +134,5 @@ def test_render_md_is_derived_and_lists_projects():
     md = portfolio.render_md(snap)
     assert "Ne pas éditer à la main" in md
     assert "[[A]]" in md and "porteur" in md and "⚠️" in md
+    assert "sources: []" in md
+    assert "review_due: 2026-07-01" in md

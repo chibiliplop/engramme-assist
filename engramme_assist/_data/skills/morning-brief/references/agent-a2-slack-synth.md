@@ -15,7 +15,8 @@ the final brief from your JSON + the JSON of parallel agents (Confluence, calend
 Claude-sessions) — you only produce YOUR block, never the brief itself.
 
 Input: a pre-triaged KEEP list of Slack items (the orchestrator pastes it below verbatim),
-plus an `unscanned` list of sources that could not be read.
+plus an `unscanned` list of sources that could not be read, the **initiative index**, and the
+**topics-counter** (compact: slug → hits, first_seen, last_seen) used for multi-day recurrence.
 
 Task — cluster kept Slack items into topic items and produce the JSON block.
 
@@ -36,16 +37,10 @@ For each cluster:
     surfaces these as required actions). Every cluster is ranked by SCORE, not by bucket —
     you don't emit any "side-noise" section, just the scored lists below.
 
-Also identify RECURRING TOPICS — same theme appearing across ≥3 messages or across multiple
-channels. List them in `recurring_topics`; the orchestrator turns recurring topics into wiki
-pages downstream.
-You receive the **initiative index** (slug, title, aliases, team, jira_keys, status, codebases).
-For each recurring topic set `project` to the matched initiative slug (else `null`) and
-`project_confidence` to `high` (Jira key, alias/title, or codebase match) or `low`. On an
-alias collision, let the thread context and any Jira key decide; if unclear, use `low`.
-Set `new_project_candidate` to `{"proposed_slug": "...", "proposed_title": "...",
-"signal": "..."}` **only** when the topic shows a strong initiative signal (a Jira/epic key
-plus a named initiative) **and** matches no indexed initiative; otherwise `null`.
+Also identify recurring / initiative-mapped topics per the shared rule below (here an "item" is a
+Slack message or thread).
+
+<recurring_topics_rules>
 
 Also detect NEW ACTIONS for `<owner_name>` — patterns like: "est-ce que tu peux", "tu peux me", "j'attends ta réponse", "relance-moi", "on attend `<owner_name>`", "waiting on you", direct questions in DMs/mentions left unanswered. Flag with the person's name and a 1-line description.
 

@@ -11,7 +11,8 @@ Aggregate what {{profile.owner.name}} missed since the last brief, prepare the w
 
 - Run from `$OBSIDIAN_VAULT_PATH` resolved via the Config Resolution Protocol. Abort clearly otherwise.
 - Keep the ingestion window as `[last_brief_ts, now]` in real time for every mode. `state/last-brief.txt` is always stamped with real `now`, never `REF_DATE`.
-- Use `REF_DATE` only as the presentation anchor: journal filename, calendar sections, task overdue/due-soon checks, retro-day nudge, and meeting prep.
+- Use `REF_DATE` only as the presentation anchor: journal filename, calendar sections, task overdue/due-soon checks, retro-day nudge, meeting prep, and the day plan (`## ☀️ Plan du jour`).
+- The `--night` close-out (`Step 1c`) is optional and non-blocking: ask at most once, at launch, and on skip/cancel proceed silently. Never ask it in normal mode or on a refresh.
 - Do not run automatically on Sat/Sun unless explicitly invoked. When computing a next working day, skip Sat/Sun and obvious holidays.
 - Write user-facing output in French, with the exact section order from `references/brief-template.md`. Do not add a Claude footer.
 - Organize Slack and Confluence by score tier, not by source. Each scored Slack/Confluence item appears exactly once; actions, meetings and goals may link back but must not re-summarize a developed item.
@@ -30,12 +31,13 @@ Read these files only when their step needs them:
 | `references/agent-c-confluence.md` | C prompt: Confluence changed pages + scoring |
 | `references/agent-d-calendar.md` | D prompt: calendar, attendee resolution, meeting prep |
 | `references/agent-e-daily-update.md` | E prompt: final `daily-update` maintenance |
-| `references/brief-template.md` | Journal skeleton, refresh merge rules, meeting/goals rendering rules |
+| `references/brief-template.md` | Journal skeleton, refresh merge rules, day-plan / Top-3 / clôture / meeting / goals rendering rules |
+| `references/recurring-topics.md` | Canonical recurring / initiative-matching rule inlined into A2, B and C at `<recurring_topics_rules>` |
 | `references/person-entity-convention.md` | Person page/stub naming and frontmatter contract |
 | `references/sources-monitored.md` | Coverage-audit source inventory |
 | `references/architecture-notes.md` | Cost/delegation rationale for maintainers |
 
-When spawning any subagent prompt file, read the file and pass only the fenced block after substituting concrete `<...>` placeholders. Headers above the fence are orchestration notes, not part of the prompt.
+When spawning any subagent prompt file, read the file and pass only the fenced block after substituting concrete `<...>` placeholders. Headers above the fence are orchestration notes, not part of the prompt. Agents A2, B and C carry a `<recurring_topics_rules>` placeholder — before spawning each, substitute the text inside the fenced block of `references/recurring-topics.md` there, verbatim, exactly like any other `<...>` value. That file is the single source for the recurring / initiative-matching logic; a subagent only sees its spawn prompt, so the block must be inlined, not referenced.
 
 ## Date Modes
 
@@ -69,6 +71,7 @@ On cancel or ambiguous answer, default to normal mode. Before 16:00 with no flag
 5. Read `state/channels.yml` for `team_channels`, `canvases` and `excluded_patterns`.
 6. Convert the window start for Confluence CQL as `lastmodified >= YYYY-MM-DD`.
 7. Read unchecked tasks from `state/open-actions.md`, ignoring Tasks query code blocks. Parse `@personne`, description, tags, `➕ YYYY-MM-DD`, optional `📅 YYYY-MM-DD`, and priority emoji. Flag tasks overdue before `REF_DATE` or due within 2 days; fall back to age-from-`➕` when no due date.
+8. Read the most recent `retros/*-retro.md` and extract its `## 🎯 Top 3 — semaine prochaine` items (that "next week" is the current week). If no retro exists, fall back to the open `#retro` tasks in `state/open-actions.md`. Keep these for the `## 🎯 Top-3 semaine` line (Step 4) and as the top input to `## ☀️ Plan du jour`.
 
 ### Step 1b - Inbox Perso
 
@@ -78,6 +81,15 @@ Read `_raw/inbox.md`. If it has non-empty, non-comment content below the `---` s
 - then heuristics to `goals.md`, `state/open-actions.md`, direct page update, or `_raw/notes/`
 
 Reset `_raw/inbox.md` to its header through `---`. Keep routed lines for the optional `## 📥 Inbox` section. Empty inbox means skip the section silently.
+
+### Step 1c - Clôture du jour (`--night` only)
+
+Only when `mode == --night`, the run is interactive, and `REFRESH == false`. Ask once, at launch (before the pipeline runs so {{profile.owner.name}} answers then walks away), via a single `AskUserQuestion` with two questions:
+
+- `Qu'est-ce qui a réellement bougé aujourd'hui ?`
+- `Quoi d'important demain ?`
+
+Each question offers a `Passer` option, with free text via `Other`. This is **non-blocking**: on cancel, empty, or both skipped, proceed silently and omit the `## 🌙 Clôture` block. Hold any answers for the Step 4 render; feed the "important demain" answer into `## ☀️ Plan du jour`. Never re-ask on a refresh; never ask in normal mode.
 
 ### Step 2 - Profile + A1 Slack Triage
 
@@ -105,6 +117,11 @@ After A1 returns:
 `OBSIDIAN_VAULT_PATH="$OBSIDIAN_VAULT_PATH" python3 "$OBSIDIAN_VAULT_PATH/_meta/scripts/initiative_index.py"`.
 Pass a compact form (`slug, title, aliases, team, jira_keys, status, codebases`) to agents A2, B and C
 so they can tag each recurring topic with the initiative it matches.
+
+**Recurrence history** — also pass a compact `state/topics-counter.json` (slug → hits, first_seen,
+last_seen) to agents A2 and C (agent B already reads it). They use it to recognise **multi-day
+recurrence** (`first_seen` ≠ `last_seen`) and cumulative `hits ≥ 3`, so a theme seen once per day
+over several days counts as recurring — not just within-window repetition.
 
 **Portfolio snapshot** — alongside the initiative index, run
 `python3 "$OBSIDIAN_VAULT_PATH/_meta/scripts/portfolio.py" --apply` and keep `_meta/portfolio.json`
@@ -148,6 +165,12 @@ Render scoring and action sections from agent outputs:
 - low signal: count in `## 👀 À surveiller`, links in `## 🗂 Faible signal — liens`
 - `## ⚡ Action required today`: A2 `action_needed`, D expected decisions, and newly detected actions; one terse action line each
 
+Render the day-framing sections at the top of the brief per `references/brief-template.md`:
+
+- `## ☀️ Plan du jour` — the top 3 of `REF_DATE`, derived by ranking: the week's Top-3 still open, `open-actions` overdue/due ≤ 2d (Step 1), `porteur` portfolio items from `_meta/portfolio.json` that are stale or have an imminent MEP/`next`, `REF_DATE`'s decision-heavy meetings (Agent D "décision attendue"), and any Step-1c "important demain". Add the capacity line (working day minus Agent D meeting hours on `REF_DATE`) and, when overloaded, exactly one defer/delegate suggestion. Always emitted, ≤6 lines.
+- `## 🎯 Top-3 semaine` — the one-line week frame from Step 1's retro Top-3, each item `✅`/`⏳`; kept out of the generic action lists.
+- `## 🌙 Clôture` — Step 1c's answers, `--night` only; omit when skipped.
+
 For `## 🎯 Objectifs`, read `goals.md`. For each active objective, scan `state/open-actions.md` and the 5 most recent journal entries for this week's matching actions. Omit the section if no active objective exists.
 
 ### Step 5 - Feed Wiki Pages
@@ -158,20 +181,19 @@ Aggregate `recurring_topics` from A2, B and C.
    ```json
    {"<topic-slug>": {"hits": N, "first_seen": "...", "last_seen": "...", "sources": [...]}}
    ```
-2. Create/update a wiki page when any threshold is met:
-   - cumulative `hits >= 3`
-   - Confluence RFC merged
-   - explicit decision logged in Slack
-   - otherwise mention only in the brief, keeping the counter
+2. Decide UPDATE vs CREATE per topic. **The trigger is whether a page already exists, not whether it recurred in this window:**
+   - **An existing page/initiative covers it** (the topic's `project` resolves to an indexed initiative, OR a same-named page already exists in `index.md`) → **always UPDATE/absorb the fact**, regardless of recurrence or hit count. This is the `UPDATE par défaut` discipline: a single-mention fact about an active initiative still belongs on its page. Always increment the counter too.
+   - **No page exists yet** → create one only when a recurrence gate is met: cumulative `hits >= 3`, **multi-day recurrence** (`first_seen` ≠ `last_seen` in the counter), a Confluence RFC merged, or an explicit decision logged in Slack. Otherwise mention in the brief only, keeping the counter.
 
-**Initiative routing (per recurring topic, from A2/B/C tags):**
-- `project` non-null + `project_confidence: high` + initiative `status: active` →
-  **bypass the recurrence gate**: stage `_raw/morning-brief/<date>-<slug>.md` titled exactly
-  as the target page (the index entry's hub title, or an existing `projects/<slug>/references/`
-  page), invoke `wiki-ingest` with `PROJECT_CREATE=false`. Still increment the counter for
-  traceability, but do not wait for `hits >= 3`.
+**Initiative routing (per topic, from A2/B/C tags):**
+- `project` non-null + initiative `status: active` →
+  stage `_raw/morning-brief/<date>-<slug>.md` titled exactly as the target page (the index entry's
+  hub title, or an existing `projects/<slug>/references/` page) and invoke `wiki-ingest` with
+  `PROJECT_CREATE=false` so it **UPDATES** that initiative. **No recurrence threshold — the page exists.**
+  `project_confidence: high` (Jira/alias/title/codebase match) routes unconditionally; `low` only when the
+  match is unambiguous (else treat as no match).
 - `new_project_candidate` present → collect it for the prompt below; do not create anything yet.
-- Otherwise → unchanged counter + `hits >= 3` gate (a standalone global page).
+- No `project` match and no existing same-named page → counter + the `hits >= 3` / multi-day gate above (a standalone global page).
 
 **New-initiative prompt** (only when the collected `new_project_candidate` set is non-empty
 **and** the run is interactive): ask **one** `AskUserQuestion` (multiSelect) listing up to 4

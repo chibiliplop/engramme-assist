@@ -48,6 +48,18 @@ def test_source_dirs_inline_and_dedup(tmp_path):
     assert _by_name(codebase_index.build_index(str(tmp_path)), "X")["source_dirs"] == ["-repo-a"]
 
 
+def test_inline_list_values_with_commas_do_not_split(tmp_path):
+    _entity(
+        tmp_path, "comma.md",
+        'title: Repo With Commas\ncategory: entities\ntags: [codebase]\n'
+        'aliases: ["Repo, API", "Repo # hash"]\n'
+        "sources: ['~/.claude/projects/-repo-comma/u1.jsonl']",
+    )
+    e = _by_name(codebase_index.build_index(str(tmp_path)), "Repo With Commas")
+    assert e["aliases"] == ["Repo, API", "Repo # hash"]
+    assert e["source_dirs"] == ["-repo-comma"]
+
+
 def test_non_jsonl_sources_ignored(tmp_path):
     _entity(
         tmp_path, "y.md",

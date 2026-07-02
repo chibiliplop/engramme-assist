@@ -69,6 +69,17 @@ brief:
 - `watch` ≤ score < `must_read` → "to watch";
 - score < `watch` → counted only.
 
+`portfolio` is a **root-level** block (sibling of `brief`, not nested inside it). It controls
+the derived project portfolio view:
+```yaml
+portfolio:
+  enabled: true
+  stale_days:
+    porteur: 10
+    contributeur: 21
+    observateur: 45
+```
+
 **How the score is computed** (on the `morning-brief` side, to calibrate weights/thresholds): an
 item's score = sum of the `weight` of the axes whose `description` matches (judgment, not a
 mechanical sum); no axis matches → score 1. So pick thresholds consistent with the sum of weights
@@ -100,6 +111,8 @@ Whole filled-in profile (all families): `profile.example.yml`, shipped in this f
    - **Brief (scoring)** → present the **"`brief` (scoring) schema" above**, offer a starting grid
      derived from `owner.role` (cf. `brief.role_fallback`), and let the user confirm or edit. The
      schema's rules are binding here: every axis needs a `weight`, `thresholds` needs `must_read > watch`.
+   - **Portfolio** → offer the root-level `portfolio` defaults above; let the user disable it or adjust
+     stale-day thresholds by engagement tier.
    - **Sources** — for EACH source (Slack, Confluence, Calendar), first ask
      **« Tu utilises X ? »** (opt-in). If **no** → don't write the source, move to the next.
      If **yes**:
@@ -132,7 +145,7 @@ Whole filled-in profile (all families): `profile.example.yml`, shipped in this f
         - Calendar: `outlook_calendar_search` (short window) → confirm that reads work.
 4. **Write the files**:
    - `owner:` → `~/.obsidian-wiki/profile.yml`
-   - `sources` / `tools` / `brief` → `$VAULT/_meta/profile.yml`
+   - `sources` / `tools` / `brief` / `portfolio` → `$VAULT/_meta/profile.yml`
    - Format: YAML, one line per axis `{ name, weight, description }` (cf. schema) — never an axis
      without a `weight`, never a bare label nor a wall of text.
 5. **Bootstrap `state/channels.yml`** (vault-relative): if it **doesn't exist**, write it with the

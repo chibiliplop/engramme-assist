@@ -162,7 +162,7 @@ See the *Paper Extraction Frame* in `references/ingest-prompts.md` for the readi
 
 **GUARD: If `$QMD_PAPERS_COLLECTION` is empty or unset, skip this entire step and proceed to Step 2.**
 
-> **No QMD?** Skip this step entirely. Use `Grep` in Step 4 to check for existing pages on the same topic before creating new ones. See `.env.example` for QMD setup instructions.
+> **No QMD?** Skip this step entirely. Existing-page detection is handled by Step 4's mandatory `page_lookup.py` gate, not by this optional pass. See `.env.example` for QMD setup instructions.
 
 When `QMD_PAPERS_COLLECTION` is set:
 
@@ -232,6 +232,8 @@ From the source, identify:
 
 You'll apply markers in Step 5. Don't conflate these — the wiki's value depends on the user being able to tell signal from synthesis.
 
+**Write inferred claims sparingly.** Every `^[inferred]` claim lands in the `wiki-verify` backlog, which drains slower than it fills. An inferred claim earns a place on the page only when it is *load-bearing* — it affects a decision, a person's role, or a project's status. Incidental speculation (a guessed motivation, a plausible-but-unverifiable aside, a generalization no one will ever act on) is **dropped, not marked**: leaving it out keeps the page dense and spares the reviewer. Before writing an inferred claim, ask "would anyone need to confirm this?" — if not, omit it.
+
 ### Step 3: Determine Project Scope
 
 `projects/` holds **initiatives** (bounded efforts), never codebases. A codebase
@@ -270,10 +272,25 @@ present, fall back to the content matching:
 
 ### Step 4: Plan Updates
 
-Before writing anything, plan which pages to update or create. Aim for 10-15 pages per ingest. For each:
-- Does this page already exist? (Check `index.md` and use Glob to search `OBSIDIAN_VAULT_PATH`)
-- If it exists, what new information does this source add?
-- If it's new, which category does it belong in?
+Before writing anything, plan which pages to update or create. Aim for 10-15 pages per ingest.
+
+#### Mandatory UPDATE-vs-ADD gate (run before ANY page creation)
+
+Duplicate pages leak whenever "does this already exist?" is answered from memory. It isn't — it's answered by a script. For **every** candidate page, before creating it, run the page-lookup helper with the working title and any aliases you would give it:
+
+```bash
+python3 "$OBSIDIAN_VAULT_PATH/_meta/scripts/page_lookup.py" --title "<candidate title>" --aliases "<alias1,alias2>" --threshold 0.78
+```
+
+It returns a JSON array `[{path, title, score}]` of existing pages that fuzzy-match. Then classify per the ingest discipline (`AGENTS.md` → *Ingest discipline*):
+
+- **A match at or above threshold → UPDATE that page** (the default). Absorb the fact into the returned page; do not create a new one.
+- **Create a new page only if** the lookup returns no match ≥ threshold, **or** you can state in one sentence why the matched page is a genuinely distinct topic (not the same entity/concept under another name). Keep that justification in your plan.
+- **Creating a page without a prior `page_lookup.py --title` call for it is a protocol violation.** The QMD source-discovery pass (Step 1b) is a *complement* — it surfaces related material to link and merge — never a substitute for this gate.
+
+Then, for each page in your plan:
+- If the gate resolved to UPDATE, what new information does this source add?
+- If the gate resolved to ADD (genuinely new), which category does it belong in?
 - What `[[wikilinks]]` should connect it to existing pages?
 
 **Apply tier-aware filtering to existing pages** (see `llm-wiki/SKILL.md`, Importance Tiering section):
@@ -422,41 +439,9 @@ updated: TIMESTAMP
 
 ### Step 8: Refresh QMD Wiki Index (optional — requires `QMD_WIKI_COLLECTION`)
 
-**GUARD: If `$QMD_WIKI_COLLECTION` is empty or unset, skip this step.** The markdown vault is still the source of truth; QMD is a search index.
+**GUARD: skip if `$QMD_WIKI_COLLECTION` is unset, the caller passed `QMD=skip`, or the source was skipped on a manifest hash match.** QMD is a search index, not the source of truth — never roll back a wiki write if refresh fails.
 
-Run this step only after pages and special files have been written. If the source was skipped because manifest hash matched, do not refresh QMD.
-
-This refresh currently requires the local QMD CLI. Use `$QMD_CLI` if set; otherwise use `qmd`. If the CLI is unavailable or returns an error, do not roll back the wiki ingest; report that the wiki was updated but QMD refresh was skipped or failed.
-
-For CLI refresh:
-
-```bash
-${QMD_CLI:-qmd} update
-```
-
-If the output says new hashes need vectors, or if pages were created/updated and embeddings may be stale, run:
-
-```bash
-${QMD_CLI:-qmd} embed
-```
-
-Verify at least one created or materially updated page is visible in the wiki collection:
-
-```bash
-${QMD_CLI:-qmd} get "qmd://$QMD_WIKI_COLLECTION/projects/<project>/<category>/<page>.md" -l 5
-```
-
-If the exact `qmd://` path is uncertain, use:
-
-```bash
-${QMD_CLI:-qmd} ls "$QMD_WIKI_COLLECTION" | grep "<page-slug>"
-```
-
-Record QMD refresh in the final report as one of:
-- `QMD refreshed: update + embed + verified`
-- `QMD skipped: QMD_WIKI_COLLECTION unset`
-- `QMD skipped: qmd CLI unavailable`
-- `QMD failed: <short error summary>`
+After pages are written, run `${QMD_CLI:-qmd} update`, then `${QMD_CLI:-qmd} embed` if it reports missing vectors (use `$QMD_CLI` if set, else `qmd`). Report one of: `QMD refreshed`, `QMD skipped: unset`, `QMD skipped: CLI unavailable`, `QMD failed: <error>`.
 
 ## Handling Multiple Sources
 

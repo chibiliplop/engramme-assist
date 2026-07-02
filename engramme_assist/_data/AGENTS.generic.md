@@ -51,11 +51,11 @@ $OBSIDIAN_VAULT_PATH/
 ├── synthesis/              # Cross-cutting analysis connecting multiple concepts
 ├── journal/                # Time-bound entries — daily logs, session notes
 └── projects/
-    └── <project-name>/      # One folder per project synced via wiki-update
-        ├── <project-name>.md   # Project overview/hub page (named after the project)
-        ├── concepts/           # Project-specific ideas, architectures
-        ├── skills/             # Project-specific how-tos, patterns
-        └── references/         # Project-specific source summaries
+    └── <initiative-slug>/   # One folder per bounded initiative, never per repo
+        ├── <initiative-slug>.md # Initiative overview/hub page
+        ├── concepts/           # Initiative-specific ideas, architectures
+        ├── skills/             # Initiative-specific how-tos, patterns
+        └── references/         # Initiative-specific source summaries
 ```
 
 Every wiki page has required frontmatter: `title`, `category`, `tags`, `sources`, `created`, `updated`. Pages connect via internal links — `[[wikilinks]]` by default, or standard Markdown links when `OBSIDIAN_LINK_FORMAT=markdown` is set in config.
@@ -117,14 +117,9 @@ Skills live in `.skills/<name>/SKILL.md`. Match the user's intent to the right s
 | "/jot <text>" / "quick note" / "remember that…" / "capture this for me" / "note rapide" | `jot` |
 | "/weekly-retro" / "retro" / "weekly review" / "bilan de la semaine" | `weekly-retro` |
 | "/morning-brief" / "morning briefing" / "daily brief" / "brief du matin" | `morning-brief` |
-| "/wiki-history-ingest claude" / "/wiki-history-ingest codex" / "/wiki-history-ingest hermes" / "/wiki-history-ingest pi" | `wiki-history-ingest` |
+| "/wiki-history-ingest <tool>" (claude/codex/copilot/hermes/openclaw/pi) / "import my Codex/Copilot/Hermes/OpenClaw/Pi history" / "ingest ~/.codex, ~/.pi, ~/.hermes, ~/.openclaw, ~/.copilot" | `wiki-history-ingest` |
 | "ingest" / "add this to the wiki" / "process these docs" / "process this export" / "ingest this data" / logs, transcripts / "/ingest-url <url>" / "add this URL" / "ingest this link" / "save this page" | `wiki-ingest` |
 | "import my Claude history" / "mine my conversations" | `claude-history-ingest` |
-| "import my Codex history" / "mine my Codex sessions" | `codex-history-ingest` |
-| "import my Hermes history" / "mine my Hermes memories" / "ingest ~/.hermes" | `hermes-history-ingest` |
-| "import my OpenClaw history" / "mine my OpenClaw sessions" / "ingest ~/.openclaw" | `openclaw-history-ingest` |
-| "import my Copilot history" / "mine my Copilot sessions" / "ingest ~/.copilot" | `copilot-history-ingest` |
-| "import my Pi history" / "mine my Pi sessions" / "ingest ~/.pi" | `pi-history-ingest` |
 | "what's the status" / "what's been ingested" / "show the delta" | `wiki-status` |
 | "wiki insights" / "hubs" / "wiki structure" | `wiki-status` (insights mode) |
 | "what do I know about X" / "find info on Y" / any question | `wiki-query` |
@@ -150,6 +145,9 @@ Skills live in `.skills/<name>/SKILL.md`. Match the user's intent to the right s
 | "/wiki-switch NAME" / "switch to my work wiki" / "switch vault" / "change wiki" / "list my wikis" / "show my vaults" / "create a new vault config" | `wiki-switch` |
 | "/wiki-digest" / "what did I learn this week" / "weekly digest" / "knowledge summary" / "what's new in my wiki" / "summarize my recent learning" / "monthly review" | `wiki-digest` |
 | "/wiki-verify" / "valide l'inféré" / "vérifie ce qui est incertain" / "passe en revue les pages non sûres" / "promote verified pages" / "what needs validating" | `wiki-verify` |
+| "/sparring" / "challenge cette décision" / "attaque ma position" / "red-team ce design" / "pre-mortem" / "prépare-moi à défendre" | `sparring` |
+| "/meeting-prep" / "prépare ma réunion" (rôle actif) — "/meeting-notes" / "prépare ma prise de notes" (assiste) | `meeting-prep` / `meeting-notes` |
+| "/meeting-debrief" / "débriefe la réunion" / "la réunion est terminée" / "qu'est-ce qu'on a décidé" | `meeting-debrief` |
 
 ## Cross-Project Usage
 
@@ -160,7 +158,7 @@ The main use case: you're working in some other project and want to sync knowled
 1. Resolve config using the Config Resolution Protocol to get `OBSIDIAN_VAULT_PATH`
 2. Scan the current project: README, source structure, git log, package metadata
 3. Distill what's worth remembering (architecture decisions, patterns, trade-offs — not code listings)
-4. Write to `$VAULT/projects/<project-name>/` (overview in `<project-name>.md`, deeper notes in the folder's `concepts/`, `skills/`, `references/`), cross-linking to concept/entity pages as needed
+4. Write durable repo facts to `entities/<Repo>.md`; route bounded work to existing or explicitly confirmed `projects/<initiative-slug>/`; route reusable/general material to global category folders. Never derive a `projects/<repo>/` catch-all from the working directory name.
 5. Update `.manifest.json`, `index.md`, and `log.md`
 
 On repeat runs, it checks `last_commit_synced` in `.manifest.json` and only processes the delta via `git log <last_commit>..HEAD`.

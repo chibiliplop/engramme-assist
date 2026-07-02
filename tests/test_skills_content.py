@@ -12,6 +12,13 @@ def test_agents_generic_documents_portfolio_engagement():
         assert token in txt, token
 
 
+def test_agents_generic_no_longer_routes_repo_update_to_project_folder():
+    txt = (DATA / "AGENTS.generic.md").read_text(encoding="utf-8")
+    assert "One folder per project synced via wiki-update" not in txt
+    assert "Write to `$VAULT/projects/<project-name>/`" not in txt
+    assert "Never derive a `projects/<repo>/` catch-all" in txt
+
+
 def _read(name: str) -> str:
     return (SKILLS / name / "SKILL.md").read_text(encoding="utf-8")
 
@@ -89,6 +96,8 @@ def test_wiki_profile_ships_filled_example_alongside():
     assert example.is_file(), example
     text = example.read_text(encoding="utf-8")
     assert "scoring_axes" in text and "weight:" in text and "thresholds" in text
+    assert "\nportfolio:\n" in text
+    assert "\n  portfolio:\n" not in text
 
 
 def test_morning_brief_references_are_shipped_and_linked():
@@ -176,7 +185,10 @@ def test_agents_emit_initiative_tags():
 
 def test_morning_brief_step5_routing_and_prompt():
     t = _read("morning-brief")
-    assert "bypass the recurrence gate" in t
+    # Owner rule: an existing initiative absorbs a scored fact even at hits=1;
+    # the recurrence gate applies only to NEW pages.
+    assert "regardless of recurrence" in t
+    assert "No recurrence threshold" in t
     assert "PROJECT_CREATE=false" in t
     assert "PROJECT_CREATE=true" in t
     assert "New-initiative prompt" in t
@@ -192,6 +204,7 @@ def test_architecture_notes_document_routing():
 def test_daily_update_runs_portfolio_script():
     txt = (DATA / "skills" / "daily-update" / "SKILL.md").read_text(encoding="utf-8")
     assert "portfolio.py" in txt
+    assert txt.index("portfolio.py") < txt.index("gardener.py\" --apply")
 
 
 def test_morning_brief_runs_portfolio_and_loads_json():
